@@ -11,8 +11,7 @@ if (!defined('ABSPATH')) {
 <div id="momentum-screener-app" class="momentum-screener-container"
      data-lookback="<?php echo esc_attr($atts['lookback']); ?>"
      data-holding="<?php echo esc_attr($atts['holding']); ?>"
-     data-topn="<?php echo esc_attr($atts['topn']); ?>"
-     data-show-backtest="<?php echo esc_attr($atts['show_backtest']); ?>">
+     data-topn="<?php echo esc_attr($atts['topn']); ?>">
 
     <!-- Header -->
     <div class="ms-header">
