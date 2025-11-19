@@ -451,9 +451,17 @@ class Momentum_Screener {
             return new WP_Error('empty_response', __('Пустой ответ от сервера', 'momentum-screener'));
         }
 
-        // Parse CSV
+        // Parse CSV/TSV
         $lines = explode("\n", $body);
-        $headers = str_getcsv(array_shift($lines));
+        $first_line = $lines[0];
+
+        // Auto-detect delimiter (tab or comma)
+        $delimiter = (strpos($first_line, "\t") !== false) ? "\t" : ",";
+
+        $headers = str_getcsv(array_shift($lines), $delimiter);
+
+        // Clean headers
+        $headers = array_map('trim', $headers);
 
         $data = array();
         foreach ($lines as $line) {
@@ -461,22 +469,35 @@ class Momentum_Screener {
                 continue;
             }
 
-            $values = str_getcsv($line);
+            $values = str_getcsv($line, $delimiter);
             $row = array();
 
             foreach ($headers as $i => $header) {
-                $header = trim($header);
-                if (isset($values[$i])) {
-                    $value = trim($values[$i]);
-                    // Convert numeric values
-                    if ($header !== 'Time' && is_numeric(str_replace(',', '.', $value))) {
-                        $value = floatval(str_replace(',', '.', $value));
+                if (empty($header)) {
+                    continue;
+                }
+
+                $value = isset($values[$i]) ? trim($values[$i]) : '';
+
+                // Convert numeric values, handle empty cells
+                if ($header !== 'Time') {
+                    if ($value === '' || $value === null) {
+                        $row[$header] = null;
+                    } else {
+                        // Replace comma with dot for decimals
+                        $numeric_value = str_replace(',', '.', $value);
+                        if (is_numeric($numeric_value)) {
+                            $row[$header] = floatval($numeric_value);
+                        } else {
+                            $row[$header] = null;
+                        }
                     }
+                } else {
                     $row[$header] = $value;
                 }
             }
 
-            if (!empty($row)) {
+            if (!empty($row) && isset($row['Time']) && !empty($row['Time'])) {
                 $data[] = $row;
             }
         }
