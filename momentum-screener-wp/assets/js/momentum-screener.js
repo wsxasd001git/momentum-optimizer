@@ -185,12 +185,7 @@
                         dividendData = null;
                     }
 
-                    // Load dividend file if configured separately
-                    if (momentumScreener.dividendUrl && !dividendData) {
-                        loadDividendFile();
-                    } else {
-                        finishLoading();
-                    }
+                    finishLoading();
 
                 } catch (err) {
                     $('#ms-loading').hide();
@@ -200,28 +195,6 @@
             .catch(error => {
                 $('#ms-loading').hide();
                 showError(error.message || 'Ошибка загрузки данных');
-            });
-    }
-
-    /**
-     * Load separate dividend file
-     */
-    function loadDividendFile() {
-        fetch(momentumScreener.dividendUrl)
-            .then(response => response.arrayBuffer())
-            .then(data => {
-                try {
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                    const sheetName = workbook.SheetNames[0];
-                    dividendData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-                } catch (err) {
-                    dividendData = null;
-                }
-                finishLoading();
-            })
-            .catch(() => {
-                dividendData = null;
-                finishLoading();
             });
     }
 

@@ -128,16 +128,8 @@ class Momentum_Screener {
 
         add_settings_field(
             'excel_file_id',
-            __('Excel файл с ценами', 'momentum-screener'),
+            __('Excel файл с данными', 'momentum-screener'),
             array($this, 'excel_file_callback'),
-            'momentum-screener',
-            'momentum_screener_main'
-        );
-
-        add_settings_field(
-            'dividend_file_id',
-            __('Excel файл с дивидендами (опционально)', 'momentum-screener'),
-            array($this, 'dividend_file_callback'),
             'momentum-screener',
             'momentum_screener_main'
         );
@@ -175,10 +167,6 @@ class Momentum_Screener {
 
         if (isset($input['excel_file_id'])) {
             $sanitized['excel_file_id'] = absint($input['excel_file_id']);
-        }
-
-        if (isset($input['dividend_file_id'])) {
-            $sanitized['dividend_file_id'] = absint($input['dividend_file_id']);
         }
 
         if (isset($input['default_lookback'])) {
@@ -223,31 +211,7 @@ class Momentum_Screener {
                 <?php esc_html_e('Удалить', 'momentum-screener'); ?>
             </button>
         </div>
-        <p class="description"><?php esc_html_e('Файл должен содержать лист "цены" с датами в первом столбце (Time) и тикерами в остальных', 'momentum-screener'); ?></p>
-        <?php
-    }
-
-    /**
-     * Dividend file field callback
-     */
-    public function dividend_file_callback() {
-        $options = get_option('momentum_screener_settings');
-        $file_id = isset($options['dividend_file_id']) ? $options['dividend_file_id'] : '';
-        $file_url = $file_id ? wp_get_attachment_url($file_id) : '';
-        $file_name = $file_id ? basename(get_attached_file($file_id)) : '';
-
-        ?>
-        <div class="ms-file-upload">
-            <input type="hidden" name="momentum_screener_settings[dividend_file_id]" id="dividend_file_id" value="<?php echo esc_attr($file_id); ?>" />
-            <input type="text" id="dividend_file_name" value="<?php echo esc_attr($file_name); ?>" class="regular-text" readonly />
-            <button type="button" class="button ms-upload-btn" data-target="dividend_file_id" data-name="dividend_file_name">
-                <?php esc_html_e('Выбрать файл', 'momentum-screener'); ?>
-            </button>
-            <button type="button" class="button ms-remove-btn" data-target="dividend_file_id" data-name="dividend_file_name" <?php echo empty($file_id) ? 'style="display:none;"' : ''; ?>>
-                <?php esc_html_e('Удалить', 'momentum-screener'); ?>
-            </button>
-        </div>
-        <p class="description"><?php esc_html_e('Опционально: файл с дивидендами в том же формате', 'momentum-screener'); ?></p>
+        <p class="description"><?php esc_html_e('Файл должен содержать лист "цены". Опционально: лист "дивиденды" или "Дивид"', 'momentum-screener'); ?></p>
         <?php
     }
 
@@ -398,22 +362,15 @@ class Momentum_Screener {
         // Get settings
         $options = get_option('momentum_screener_settings');
 
-        // Get file URLs
+        // Get file URL
         $excel_url = '';
-        $dividend_url = '';
-
         if (!empty($options['excel_file_id'])) {
             $excel_url = wp_get_attachment_url($options['excel_file_id']);
-        }
-
-        if (!empty($options['dividend_file_id'])) {
-            $dividend_url = wp_get_attachment_url($options['dividend_file_id']);
         }
 
         // Localize script
         wp_localize_script('momentum-screener', 'momentumScreener', array(
             'excelUrl' => $excel_url,
-            'dividendUrl' => $dividend_url,
             'defaults' => array(
                 'lookback' => isset($options['default_lookback']) ? intval($options['default_lookback']) : 3,
                 'holding' => isset($options['default_holding']) ? intval($options['default_holding']) : 1,
@@ -452,19 +409,12 @@ class Momentum_Screener {
         $options = get_option('momentum_screener_settings');
 
         $excel_url = '';
-        $dividend_url = '';
-
         if (!empty($options['excel_file_id'])) {
             $excel_url = wp_get_attachment_url($options['excel_file_id']);
         }
 
-        if (!empty($options['dividend_file_id'])) {
-            $dividend_url = wp_get_attachment_url($options['dividend_file_id']);
-        }
-
         wp_send_json_success(array(
-            'excelUrl' => $excel_url,
-            'dividendUrl' => $dividend_url
+            'excelUrl' => $excel_url
         ));
     }
 }
@@ -481,7 +431,6 @@ function momentum_screener_activate() {
     // Set default options
     $defaults = array(
         'excel_file_id' => '',
-        'dividend_file_id' => '',
         'default_lookback' => 3,
         'default_holding' => 1,
         'default_topn' => 10,
