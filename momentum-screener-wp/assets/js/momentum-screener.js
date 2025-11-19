@@ -11,6 +11,7 @@
     let dividendData = null;
     let charts = {};
     let recalculateTimeout = null;
+    let tickersCache = null;
 
     // Settings
     let settings = {
@@ -216,9 +217,13 @@
         if (recalculateTimeout) {
             clearTimeout(recalculateTimeout);
         }
+        // Show loading state
+        $('#ms-metrics').css('opacity', '0.5');
+
         recalculateTimeout = setTimeout(function() {
             recalculate();
-        }, 150);
+            $('#ms-metrics').css('opacity', '1');
+        }, 300);
     }
 
     /**
@@ -234,12 +239,10 @@
     function updateStats() {
         if (!priceData || priceData.length === 0) return;
 
-        const allTickers = new Set();
-        priceData.forEach(row => {
-            Object.keys(row).forEach(key => {
-                if (key !== 'Time') allTickers.add(key);
-            });
-        });
+        // Cache tickers list
+        if (!tickersCache) {
+            tickersCache = Object.keys(priceData[0]).filter(k => k !== 'Time');
+        }
 
         const lastRow = priceData[priceData.length - 1];
         const activeCount = Object.keys(lastRow).filter(k =>
@@ -248,7 +251,7 @@
 
         $('#ms-stats').html(
             priceData.length + ' месяцев &bull; ' +
-            allTickers.size + ' тикеров (сейчас торгуется ' + activeCount + ')'
+            tickersCache.length + ' тикеров (сейчас торгуется ' + activeCount + ')'
         );
     }
 
@@ -396,7 +399,8 @@
     function recalculate() {
         if (!priceData || priceData.length === 0) return;
 
-        const tickers = Object.keys(priceData[0]).filter(k => k !== 'Time');
+        // Use cached tickers
+        const tickers = tickersCache || Object.keys(priceData[0]).filter(k => k !== 'Time');
         const portfolioValues = [];
         const detailedTrades = [];
         let cash = 100000;
