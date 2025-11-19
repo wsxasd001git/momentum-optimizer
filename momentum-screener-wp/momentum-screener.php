@@ -3,7 +3,7 @@
  * Plugin Name: Momentum Screener для российских акций
  * Plugin URI: https://github.com/momentum-screener
  * Description: Скринер моментума для российского рынка акций с бэктестингом и рекомендациями
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: Momentum Screener Team
  * Author URI: https://github.com/momentum-screener
  * License: GPL v2 or later
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('MOMENTUM_SCREENER_VERSION', '1.0.0');
+define('MOMENTUM_SCREENER_VERSION', '1.1.0');
 define('MOMENTUM_SCREENER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('MOMENTUM_SCREENER_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -50,6 +50,10 @@ class Momentum_Screener {
      * Initialize hooks
      */
     private function init_hooks() {
+        // Allow XLSX uploads
+        add_filter('upload_mimes', array($this, 'allow_xlsx_upload'));
+        add_filter('wp_check_filetype_and_ext', array($this, 'fix_xlsx_upload'), 10, 5);
+
         // Admin hooks
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
@@ -60,8 +64,38 @@ class Momentum_Screener {
         add_shortcode('momentum_screener', array($this, 'render_shortcode'));
 
         // AJAX hooks
-        add_action('wp_ajax_momentum_fetch_data', array($this, 'ajax_fetch_data'));
-        add_action('wp_ajax_nopriv_momentum_fetch_data', array($this, 'ajax_fetch_data'));
+        add_action('wp_ajax_momentum_get_file_url', array($this, 'ajax_get_file_url'));
+        add_action('wp_ajax_nopriv_momentum_get_file_url', array($this, 'ajax_get_file_url'));
+    }
+
+    /**
+     * Allow XLSX file uploads
+     */
+    public function allow_xlsx_upload($mimes) {
+        $mimes['xlsx'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        $mimes['xls'] = 'application/vnd.ms-excel';
+        return $mimes;
+    }
+
+    /**
+     * Fix XLSX upload check
+     */
+    public function fix_xlsx_upload($data, $file, $filename, $mimes, $real_mime = '') {
+        if (!empty($data['ext']) && !empty($data['type'])) {
+            return $data;
+        }
+
+        $filetype = wp_check_filetype($filename, $mimes);
+
+        if ('xlsx' === $filetype['ext']) {
+            $data['ext'] = 'xlsx';
+            $data['type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        } elseif ('xls' === $filetype['ext']) {
+            $data['ext'] = 'xls';
+            $data['type'] = 'application/vnd.ms-excel';
+        }
+
+        return $data;
     }
 
     /**
@@ -93,25 +127,17 @@ class Momentum_Screener {
         );
 
         add_settings_field(
-            'google_sheet_url',
-            __('URL Google Sheets (CSV)', 'momentum-screener'),
-            array($this, 'google_sheet_url_callback'),
+            'excel_file_id',
+            __('Excel файл с ценами', 'momentum-screener'),
+            array($this, 'excel_file_callback'),
             'momentum-screener',
             'momentum_screener_main'
         );
 
         add_settings_field(
-            'dividend_sheet_url',
-            __('URL дивидендов (CSV)', 'momentum-screener'),
-            array($this, 'dividend_sheet_url_callback'),
-            'momentum-screener',
-            'momentum_screener_main'
-        );
-
-        add_settings_field(
-            'cache_duration',
-            __('Время кэширования (минуты)', 'momentum-screener'),
-            array($this, 'cache_duration_callback'),
+            'dividend_file_id',
+            __('Excel файл с дивидендами (опционально)', 'momentum-screener'),
+            array($this, 'dividend_file_callback'),
             'momentum-screener',
             'momentum_screener_main'
         );
@@ -147,16 +173,12 @@ class Momentum_Screener {
     public function sanitize_settings($input) {
         $sanitized = array();
 
-        if (isset($input['google_sheet_url'])) {
-            $sanitized['google_sheet_url'] = esc_url_raw($input['google_sheet_url']);
+        if (isset($input['excel_file_id'])) {
+            $sanitized['excel_file_id'] = absint($input['excel_file_id']);
         }
 
-        if (isset($input['dividend_sheet_url'])) {
-            $sanitized['dividend_sheet_url'] = esc_url_raw($input['dividend_sheet_url']);
-        }
-
-        if (isset($input['cache_duration'])) {
-            $sanitized['cache_duration'] = absint($input['cache_duration']);
+        if (isset($input['dividend_file_id'])) {
+            $sanitized['dividend_file_id'] = absint($input['dividend_file_id']);
         }
 
         if (isset($input['default_lookback'])) {
@@ -178,38 +200,55 @@ class Momentum_Screener {
      * Settings section callback
      */
     public function settings_section_callback() {
-        echo '<p>' . esc_html__('Укажите URL Google Sheets для загрузки данных о ценах акций. Используйте формат CSV экспорта.', 'momentum-screener') . '</p>';
-        echo '<p><strong>' . esc_html__('Формат URL:', 'momentum-screener') . '</strong> https://docs.google.com/spreadsheets/d/{ID}/export?format=csv&gid={SHEET_ID}</p>';
+        echo '<p>' . esc_html__('Загрузите Excel файл с ценами акций через медиа-библиотеку WordPress.', 'momentum-screener') . '</p>';
     }
 
     /**
-     * Google Sheet URL field callback
+     * Excel file field callback
      */
-    public function google_sheet_url_callback() {
+    public function excel_file_callback() {
         $options = get_option('momentum_screener_settings');
-        $value = isset($options['google_sheet_url']) ? $options['google_sheet_url'] : '';
-        echo '<input type="url" name="momentum_screener_settings[google_sheet_url]" value="' . esc_attr($value) . '" class="regular-text" />';
-        echo '<p class="description">' . esc_html__('URL CSV экспорта листа "цены"', 'momentum-screener') . '</p>';
+        $file_id = isset($options['excel_file_id']) ? $options['excel_file_id'] : '';
+        $file_url = $file_id ? wp_get_attachment_url($file_id) : '';
+        $file_name = $file_id ? basename(get_attached_file($file_id)) : '';
+
+        ?>
+        <div class="ms-file-upload">
+            <input type="hidden" name="momentum_screener_settings[excel_file_id]" id="excel_file_id" value="<?php echo esc_attr($file_id); ?>" />
+            <input type="text" id="excel_file_name" value="<?php echo esc_attr($file_name); ?>" class="regular-text" readonly />
+            <button type="button" class="button ms-upload-btn" data-target="excel_file_id" data-name="excel_file_name">
+                <?php esc_html_e('Выбрать файл', 'momentum-screener'); ?>
+            </button>
+            <button type="button" class="button ms-remove-btn" data-target="excel_file_id" data-name="excel_file_name" <?php echo empty($file_id) ? 'style="display:none;"' : ''; ?>>
+                <?php esc_html_e('Удалить', 'momentum-screener'); ?>
+            </button>
+        </div>
+        <p class="description"><?php esc_html_e('Файл должен содержать лист "цены" с датами в первом столбце (Time) и тикерами в остальных', 'momentum-screener'); ?></p>
+        <?php
     }
 
     /**
-     * Dividend Sheet URL field callback
+     * Dividend file field callback
      */
-    public function dividend_sheet_url_callback() {
+    public function dividend_file_callback() {
         $options = get_option('momentum_screener_settings');
-        $value = isset($options['dividend_sheet_url']) ? $options['dividend_sheet_url'] : '';
-        echo '<input type="url" name="momentum_screener_settings[dividend_sheet_url]" value="' . esc_attr($value) . '" class="regular-text" />';
-        echo '<p class="description">' . esc_html__('URL CSV экспорта листа дивидендов (опционально)', 'momentum-screener') . '</p>';
-    }
+        $file_id = isset($options['dividend_file_id']) ? $options['dividend_file_id'] : '';
+        $file_url = $file_id ? wp_get_attachment_url($file_id) : '';
+        $file_name = $file_id ? basename(get_attached_file($file_id)) : '';
 
-    /**
-     * Cache duration field callback
-     */
-    public function cache_duration_callback() {
-        $options = get_option('momentum_screener_settings');
-        $value = isset($options['cache_duration']) ? $options['cache_duration'] : 60;
-        echo '<input type="number" name="momentum_screener_settings[cache_duration]" value="' . esc_attr($value) . '" min="1" max="1440" class="small-text" />';
-        echo '<p class="description">' . esc_html__('Как долго кэшировать данные (1-1440 минут)', 'momentum-screener') . '</p>';
+        ?>
+        <div class="ms-file-upload">
+            <input type="hidden" name="momentum_screener_settings[dividend_file_id]" id="dividend_file_id" value="<?php echo esc_attr($file_id); ?>" />
+            <input type="text" id="dividend_file_name" value="<?php echo esc_attr($file_name); ?>" class="regular-text" readonly />
+            <button type="button" class="button ms-upload-btn" data-target="dividend_file_id" data-name="dividend_file_name">
+                <?php esc_html_e('Выбрать файл', 'momentum-screener'); ?>
+            </button>
+            <button type="button" class="button ms-remove-btn" data-target="dividend_file_id" data-name="dividend_file_name" <?php echo empty($file_id) ? 'style="display:none;"' : ''; ?>>
+                <?php esc_html_e('Удалить', 'momentum-screener'); ?>
+            </button>
+        </div>
+        <p class="description"><?php esc_html_e('Опционально: файл с дивидендами в том же формате', 'momentum-screener'); ?></p>
+        <?php
     }
 
     /**
@@ -269,20 +308,17 @@ class Momentum_Screener {
                 <li><code>lookback="3"</code> - <?php esc_html_e('Период расчета momentum (1-12 мес)', 'momentum-screener'); ?></li>
                 <li><code>holding="1"</code> - <?php esc_html_e('Период удержания (1-6 мес)', 'momentum-screener'); ?></li>
                 <li><code>topn="10"</code> - <?php esc_html_e('Количество акций в портфеле (5-30)', 'momentum-screener'); ?></li>
-                <li><code>show_backtest="true"</code> - <?php esc_html_e('Показывать бэктест', 'momentum-screener'); ?></li>
             </ul>
-
-            <h3><?php esc_html_e('Пример:', 'momentum-screener'); ?></h3>
-            <code>[momentum_screener lookback="6" holding="1" topn="15" show_backtest="true"]</code>
 
             <hr>
 
-            <h2><?php esc_html_e('Требования к данным Google Sheets', 'momentum-screener'); ?></h2>
+            <h2><?php esc_html_e('Требования к Excel файлу', 'momentum-screener'); ?></h2>
             <ul>
-                <li><?php esc_html_e('Первый столбец: Time (даты в формате YYYY-MM-DD)', 'momentum-screener'); ?></li>
+                <li><?php esc_html_e('Формат: .xlsx', 'momentum-screener'); ?></li>
+                <li><?php esc_html_e('Лист с названием "цены"', 'momentum-screener'); ?></li>
+                <li><?php esc_html_e('Первый столбец: Time (даты)', 'momentum-screener'); ?></li>
                 <li><?php esc_html_e('Остальные столбцы: тикеры акций с ценами', 'momentum-screener'); ?></li>
-                <li><?php esc_html_e('Данные должны быть отсортированы по дате (по возрастанию)', 'momentum-screener'); ?></li>
-                <li><?php esc_html_e('Каждая строка = один месяц', 'momentum-screener'); ?></li>
+                <li><?php esc_html_e('Опционально: лист "дивиденды" или "Дивид" с дивидендами', 'momentum-screener'); ?></li>
             </ul>
         </div>
         <?php
@@ -296,11 +332,21 @@ class Momentum_Screener {
             return;
         }
 
+        wp_enqueue_media();
+
         wp_enqueue_style(
             'momentum-screener-admin',
             MOMENTUM_SCREENER_PLUGIN_URL . 'assets/css/admin.css',
             array(),
             MOMENTUM_SCREENER_VERSION
+        );
+
+        wp_enqueue_script(
+            'momentum-screener-admin',
+            MOMENTUM_SCREENER_PLUGIN_URL . 'assets/js/admin.js',
+            array('jquery'),
+            MOMENTUM_SCREENER_VERSION,
+            true
         );
     }
 
@@ -323,6 +369,15 @@ class Momentum_Screener {
             true
         );
 
+        // Enqueue SheetJS for Excel parsing
+        wp_enqueue_script(
+            'sheetjs',
+            'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+            array(),
+            '0.18.5',
+            true
+        );
+
         // Enqueue plugin styles
         wp_enqueue_style(
             'momentum-screener',
@@ -335,7 +390,7 @@ class Momentum_Screener {
         wp_enqueue_script(
             'momentum-screener',
             MOMENTUM_SCREENER_PLUGIN_URL . 'assets/js/momentum-screener.js',
-            array('jquery', 'chartjs'),
+            array('jquery', 'chartjs', 'sheetjs'),
             MOMENTUM_SCREENER_VERSION,
             true
         );
@@ -343,10 +398,22 @@ class Momentum_Screener {
         // Get settings
         $options = get_option('momentum_screener_settings');
 
+        // Get file URLs
+        $excel_url = '';
+        $dividend_url = '';
+
+        if (!empty($options['excel_file_id'])) {
+            $excel_url = wp_get_attachment_url($options['excel_file_id']);
+        }
+
+        if (!empty($options['dividend_file_id'])) {
+            $dividend_url = wp_get_attachment_url($options['dividend_file_id']);
+        }
+
         // Localize script
         wp_localize_script('momentum-screener', 'momentumScreener', array(
-            'ajaxUrl' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('momentum_screener_nonce'),
+            'excelUrl' => $excel_url,
+            'dividendUrl' => $dividend_url,
             'defaults' => array(
                 'lookback' => isset($options['default_lookback']) ? intval($options['default_lookback']) : 3,
                 'holding' => isset($options['default_holding']) ? intval($options['default_holding']) : 1,
@@ -356,8 +423,7 @@ class Momentum_Screener {
                 'loading' => __('Загрузка данных...', 'momentum-screener'),
                 'error' => __('Ошибка загрузки данных', 'momentum-screener'),
                 'noData' => __('Данные не найдены', 'momentum-screener'),
-                'portfolioValue' => __('Стоимость портфеля', 'momentum-screener'),
-                'periodReturn' => __('Доходность периода', 'momentum-screener'),
+                'noFile' => __('Excel файл не настроен. Перейдите в Настройки > Momentum Screener', 'momentum-screener'),
             )
         ));
     }
@@ -372,7 +438,6 @@ class Momentum_Screener {
             'lookback' => isset($options['default_lookback']) ? $options['default_lookback'] : 3,
             'holding' => isset($options['default_holding']) ? $options['default_holding'] : 1,
             'topn' => isset($options['default_topn']) ? $options['default_topn'] : 10,
-            'show_backtest' => 'true',
         ), $atts);
 
         ob_start();
@@ -381,128 +446,26 @@ class Momentum_Screener {
     }
 
     /**
-     * AJAX handler for fetching data
+     * AJAX handler for getting file URL
      */
-    public function ajax_fetch_data() {
-        check_ajax_referer('momentum_screener_nonce', 'nonce');
-
+    public function ajax_get_file_url() {
         $options = get_option('momentum_screener_settings');
 
-        if (empty($options['google_sheet_url'])) {
-            wp_send_json_error(array(
-                'message' => __('URL источника данных не настроен', 'momentum-screener')
-            ));
+        $excel_url = '';
+        $dividend_url = '';
+
+        if (!empty($options['excel_file_id'])) {
+            $excel_url = wp_get_attachment_url($options['excel_file_id']);
         }
 
-        // Check cache
-        $cache_key = 'momentum_screener_data';
-        $cached_data = get_transient($cache_key);
-
-        if ($cached_data !== false) {
-            wp_send_json_success($cached_data);
+        if (!empty($options['dividend_file_id'])) {
+            $dividend_url = wp_get_attachment_url($options['dividend_file_id']);
         }
 
-        // Fetch price data
-        $price_data = $this->fetch_csv_data($options['google_sheet_url']);
-
-        if (is_wp_error($price_data)) {
-            wp_send_json_error(array(
-                'message' => $price_data->get_error_message()
-            ));
-        }
-
-        // Fetch dividend data (optional)
-        $dividend_data = null;
-        if (!empty($options['dividend_sheet_url'])) {
-            $dividend_data = $this->fetch_csv_data($options['dividend_sheet_url']);
-            if (is_wp_error($dividend_data)) {
-                $dividend_data = null;
-            }
-        }
-
-        $data = array(
-            'prices' => $price_data,
-            'dividends' => $dividend_data
-        );
-
-        // Cache data
-        $cache_duration = isset($options['cache_duration']) ? intval($options['cache_duration']) : 60;
-        set_transient($cache_key, $data, $cache_duration * MINUTE_IN_SECONDS);
-
-        wp_send_json_success($data);
-    }
-
-    /**
-     * Fetch CSV data from URL
-     */
-    private function fetch_csv_data($url) {
-        $response = wp_remote_get($url, array(
-            'timeout' => 30,
-            'sslverify' => false
+        wp_send_json_success(array(
+            'excelUrl' => $excel_url,
+            'dividendUrl' => $dividend_url
         ));
-
-        if (is_wp_error($response)) {
-            return $response;
-        }
-
-        $body = wp_remote_retrieve_body($response);
-
-        if (empty($body)) {
-            return new WP_Error('empty_response', __('Пустой ответ от сервера', 'momentum-screener'));
-        }
-
-        // Parse CSV/TSV
-        $lines = explode("\n", $body);
-        $first_line = $lines[0];
-
-        // Auto-detect delimiter (tab or comma)
-        $delimiter = (strpos($first_line, "\t") !== false) ? "\t" : ",";
-
-        $headers = str_getcsv(array_shift($lines), $delimiter);
-
-        // Clean headers
-        $headers = array_map('trim', $headers);
-
-        $data = array();
-        foreach ($lines as $line) {
-            if (empty(trim($line))) {
-                continue;
-            }
-
-            $values = str_getcsv($line, $delimiter);
-            $row = array();
-
-            foreach ($headers as $i => $header) {
-                if (empty($header)) {
-                    continue;
-                }
-
-                $value = isset($values[$i]) ? trim($values[$i]) : '';
-
-                // Convert numeric values, handle empty cells
-                if ($header !== 'Time') {
-                    if ($value === '' || $value === null) {
-                        $row[$header] = null;
-                    } else {
-                        // Replace comma with dot for decimals
-                        $numeric_value = str_replace(',', '.', $value);
-                        if (is_numeric($numeric_value)) {
-                            $row[$header] = floatval($numeric_value);
-                        } else {
-                            $row[$header] = null;
-                        }
-                    }
-                } else {
-                    $row[$header] = $value;
-                }
-            }
-
-            if (!empty($row) && isset($row['Time']) && !empty($row['Time'])) {
-                $data[] = $row;
-            }
-        }
-
-        return $data;
     }
 }
 
@@ -517,9 +480,8 @@ register_activation_hook(__FILE__, 'momentum_screener_activate');
 function momentum_screener_activate() {
     // Set default options
     $defaults = array(
-        'google_sheet_url' => '',
-        'dividend_sheet_url' => '',
-        'cache_duration' => 60,
+        'excel_file_id' => '',
+        'dividend_file_id' => '',
         'default_lookback' => 3,
         'default_holding' => 1,
         'default_topn' => 10,
@@ -531,5 +493,5 @@ function momentum_screener_activate() {
 // Deactivation hook
 register_deactivation_hook(__FILE__, 'momentum_screener_deactivate');
 function momentum_screener_deactivate() {
-    delete_transient('momentum_screener_data');
+    // Nothing to clean up
 }

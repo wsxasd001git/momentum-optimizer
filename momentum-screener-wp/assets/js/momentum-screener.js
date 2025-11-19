@@ -33,9 +33,9 @@
         if (!$app.length) return;
 
         // Load settings from data attributes
-        settings.lookbackPeriod = parseInt($app.data('lookback')) || 3;
-        settings.holdingPeriod = parseInt($app.data('holding')) || 1;
-        settings.topN = parseInt($app.data('topn')) || 10;
+        settings.lookbackPeriod = parseInt($app.data('lookback')) || momentumScreener.defaults.lookback;
+        settings.holdingPeriod = parseInt($app.data('holding')) || momentumScreener.defaults.holding;
+        settings.topN = parseInt($app.data('topn')) || momentumScreener.defaults.topn;
 
         // Set initial control values
         $('#ms-lookback').val(settings.lookbackPeriod);
@@ -134,43 +134,105 @@
     }
 
     /**
-     * Fetch data from server
+     * Fetch Excel data from URL
      */
     function fetchData() {
         $('#ms-loading').show();
         $('#ms-error').hide();
         $('#ms-content').hide();
 
-        $.ajax({
-            url: momentumScreener.ajaxUrl,
-            type: 'POST',
-            data: {
-                action: 'momentum_fetch_data',
-                nonce: momentumScreener.nonce
-            },
-            success: function(response) {
-                $('#ms-loading').hide();
+        // Check if Excel URL is configured
+        if (!momentumScreener.excelUrl) {
+            $('#ms-loading').hide();
+            showError(momentumScreener.strings.noFile);
+            return;
+        }
 
-                if (response.success) {
-                    priceData = response.data.prices;
-                    dividendData = response.data.dividends;
-
-                    if (priceData && priceData.length > 0) {
-                        updateStats();
-                        recalculate();
-                        $('#ms-content').show();
-                    } else {
-                        showError('Данные не найдены');
-                    }
-                } else {
-                    showError(response.data.message || 'Ошибка загрузки данных');
+        // Fetch Excel file
+        fetch(momentumScreener.excelUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Ошибка загрузки файла');
                 }
-            },
-            error: function() {
+                return response.arrayBuffer();
+            })
+            .then(data => {
+                try {
+                    // Parse Excel with SheetJS
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+
+                    // Check for prices sheet
+                    if (!workbook.SheetNames.includes('цены')) {
+                        throw new Error('Лист "цены" не найден. Доступные листы: ' + workbook.SheetNames.join(', '));
+                    }
+
+                    // Parse prices sheet
+                    const sheet = workbook.Sheets['цены'];
+                    priceData = XLSX.utils.sheet_to_json(sheet);
+
+                    if (!priceData || priceData.length === 0) {
+                        throw new Error('Файл пуст');
+                    }
+
+                    // Check for dividends sheet
+                    const divSheetNames = ['Дивид', 'дивиденды', 'Дивиденды', 'dividends'];
+                    const divSheetName = divSheetNames.find(name => workbook.SheetNames.includes(name));
+
+                    if (divSheetName) {
+                        const divSheet = workbook.Sheets[divSheetName];
+                        dividendData = XLSX.utils.sheet_to_json(divSheet);
+                    } else {
+                        dividendData = null;
+                    }
+
+                    // Load dividend file if configured separately
+                    if (momentumScreener.dividendUrl && !dividendData) {
+                        loadDividendFile();
+                    } else {
+                        finishLoading();
+                    }
+
+                } catch (err) {
+                    $('#ms-loading').hide();
+                    showError(err.message);
+                }
+            })
+            .catch(error => {
                 $('#ms-loading').hide();
-                showError('Ошибка соединения с сервером');
-            }
-        });
+                showError(error.message || 'Ошибка загрузки данных');
+            });
+    }
+
+    /**
+     * Load separate dividend file
+     */
+    function loadDividendFile() {
+        fetch(momentumScreener.dividendUrl)
+            .then(response => response.arrayBuffer())
+            .then(data => {
+                try {
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    const sheetName = workbook.SheetNames[0];
+                    dividendData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+                } catch (err) {
+                    dividendData = null;
+                }
+                finishLoading();
+            })
+            .catch(() => {
+                dividendData = null;
+                finishLoading();
+            });
+    }
+
+    /**
+     * Finish loading and start calculations
+     */
+    function finishLoading() {
+        $('#ms-loading').hide();
+        updateStats();
+        recalculate();
+        $('#ms-content').show();
     }
 
     /**
@@ -279,6 +341,7 @@
                 dividendStartIdx = i - settings.lookbackPeriod;
                 dividendEndIdx = i - 1;
             } else {
+                if (i - settings.lookbackPeriod < 0) return;
                 pastPrice = priceData[i - settings.lookbackPeriod][ticker];
                 dividendStartIdx = i - settings.lookbackPeriod + 1;
                 dividendEndIdx = i;
@@ -354,6 +417,12 @@
 
         const startIdx = settings.skipLastMonth ? settings.lookbackPeriod + 1 : settings.lookbackPeriod;
 
+        // Check if we have enough data
+        if (startIdx >= priceData.length - settings.holdingPeriod) {
+            showError('Недостаточно данных для расчета. Попробуйте уменьшить период расчета momentum.');
+            return;
+        }
+
         // Run backtest
         for (let i = startIdx; i < priceData.length - settings.holdingPeriod; i += settings.holdingPeriod) {
             const { selectedStocks, adjustedTopN } = calcMomentumAtIndex(i, tickers);
@@ -422,6 +491,9 @@
             return;
         }
 
+        // Hide error if shown
+        $('#ms-error').hide();
+
         // Calculate current recommendations
         const lastIdx = priceData.length - 1;
         let currentRecommendations = null;
@@ -450,7 +522,7 @@
         const firstDate = new Date(portfolioValues[0].date);
         const lastDate = new Date(portfolioValues[portfolioValues.length - 1].date);
         const totalYears = (lastDate - firstDate) / (1000 * 60 * 60 * 24 * 365.25);
-        const annualReturn = (Math.pow(cash / 100000, 1 / totalYears) - 1) * 100;
+        const annualReturn = totalYears > 0 ? (Math.pow(cash / 100000, 1 / totalYears) - 1) * 100 : 0;
 
         const periods = portfolioValues.length;
         const avgReturn = portfolioValues.reduce((sum, v) => sum + v.return, 0) / periods;
