@@ -10,6 +10,7 @@
     let priceData = null;
     let dividendData = null;
     let charts = {};
+    let recalculateTimeout = null;
 
     // Settings
     let settings = {
@@ -57,31 +58,31 @@
         $('#ms-lookback').on('input', function() {
             settings.lookbackPeriod = parseInt($(this).val());
             $('#ms-lookback-value').text(settings.lookbackPeriod + ' мес');
-            recalculate();
+            debouncedRecalculate();
         });
 
         $('#ms-holding').on('input', function() {
             settings.holdingPeriod = parseInt($(this).val());
             $('#ms-holding-value').text(settings.holdingPeriod + ' мес');
-            recalculate();
+            debouncedRecalculate();
         });
 
         $('#ms-topn').on('input', function() {
             settings.topN = parseInt($(this).val());
             $('#ms-topn-value').text(settings.topN + ' акций');
-            recalculate();
+            debouncedRecalculate();
         });
 
         $('#ms-maxvol').on('input', function() {
             settings.maxVol = parseInt($(this).val());
             $('#ms-maxvol-value').text(settings.maxVol);
-            recalculate();
+            debouncedRecalculate();
         });
 
         $('#ms-marketvol').on('input', function() {
             settings.marketVolThreshold = parseInt($(this).val());
             $('#ms-marketvol-value').text(settings.marketVolThreshold);
-            recalculate();
+            debouncedRecalculate();
         });
 
         // Toggle buttons
@@ -91,33 +92,33 @@
             $('#ms-dividends-desc').text(settings.useDividends
                 ? 'Полная доходность: рост цены + дивиденды'
                 : 'Только рост цены (без дивидендов)');
-            recalculate();
+            debouncedRecalculate();
         });
 
         $('#ms-skip-toggle').on('click', function() {
             settings.skipLastMonth = !settings.skipLastMonth;
             updateToggle($(this), settings.skipLastMonth);
-            recalculate();
+            debouncedRecalculate();
         });
 
         $('#ms-volfilter-toggle').on('click', function() {
             settings.useVolFilter = !settings.useVolFilter;
             updateToggle($(this), settings.useVolFilter);
             $('#ms-volfilter-body').toggle(settings.useVolFilter);
-            recalculate();
+            debouncedRecalculate();
         });
 
         $('#ms-riskadj-toggle').on('click', function() {
             settings.useRiskAdj = !settings.useRiskAdj;
             updateToggle($(this), settings.useRiskAdj, true);
-            recalculate();
+            debouncedRecalculate();
         });
 
         $('#ms-dynamic-toggle').on('click', function() {
             settings.dynamicMode = !settings.dynamicMode;
             updateToggle($(this), settings.dynamicMode);
             $('#ms-dynamic-body').toggle(settings.dynamicMode);
-            recalculate();
+            debouncedRecalculate();
         });
     }
 
@@ -206,6 +207,18 @@
         updateStats();
         recalculate();
         $('#ms-content').show();
+    }
+
+    /**
+     * Debounced recalculate to avoid lag on rapid changes
+     */
+    function debouncedRecalculate() {
+        if (recalculateTimeout) {
+            clearTimeout(recalculateTimeout);
+        }
+        recalculateTimeout = setTimeout(function() {
+            recalculate();
+        }, 150);
     }
 
     /**
