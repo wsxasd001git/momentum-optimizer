@@ -352,15 +352,15 @@
                 let priceReturn = (currentPrice - pastPrice) / pastPrice;
                 let totalReturn = priceReturn;
 
-                // Add dividend return
+                // Add dividend return (from past price, not current price at dividend date)
                 if (settings.useDividends && dividendData) {
                     let dividendReturn = 0;
                     for (let j = dividendStartIdx; j <= dividendEndIdx; j++) {
                         if (j >= 0 && j < dividendData.length) {
                             const divRow = dividendData[j];
-                            const priceForYield = priceData[j][ticker];
-                            if (divRow && divRow[ticker] && priceForYield && priceForYield > 0) {
-                                dividendReturn += divRow[ticker] / priceForYield;
+                            // Dividend yield from initial price (pastPrice), not price at payment date
+                            if (divRow && divRow[ticker] && pastPrice > 0) {
+                                dividendReturn += divRow[ticker] / pastPrice;
                             }
                         }
                     }
@@ -436,9 +436,9 @@
                             for (let j = i + 1; j <= i + settings.holdingPeriod && j < priceData.length; j++) {
                                 if (j < dividendData.length) {
                                     const divRow = dividendData[j];
-                                    const priceForYield = priceData[j][stock.ticker];
-                                    if (divRow && divRow[stock.ticker] && priceForYield && priceForYield > 0) {
-                                        dividendReturn += divRow[stock.ticker] / priceForYield;
+                                    // Dividend yield from buy price, not current price
+                                    if (divRow && divRow[stock.ticker] && buyPrice > 0) {
+                                        dividendReturn += divRow[stock.ticker] / buyPrice;
                                     }
                                 }
                             }
