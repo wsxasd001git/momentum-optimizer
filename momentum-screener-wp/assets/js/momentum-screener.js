@@ -759,19 +759,11 @@
         trades.forEach((trade, idx) => {
             const returnClass = parseFloat(trade.totalReturn) >= 0 ? 'ms-positive' : 'ms-negative';
 
-            // Show market vol and adjusted portfolio size if dynamic mode
-            let dynamicInfo = '';
-            if (trade.marketVol !== null) {
-                const isHigh = parseFloat(trade.marketVol) > settings.marketVolThreshold;
-                const volClass = isHigh ? 'ms-negative' : 'ms-positive';
-                dynamicInfo = `<br><small class="${volClass}">Рын. вол: ${trade.marketVol}% (портфель: ${trade.portfolioSize})</small>`;
-            }
-
             const row = `
                 <tr class="ms-history-row" data-idx="${idx}">
                     <td>${trade.date}</td>
                     <td>${trade.sellDate}</td>
-                    <td>${trade.stockCount}${dynamicInfo}</td>
+                    <td>${trade.stockCount}</td>
                     <td class="${returnClass}">${trade.totalReturn}%</td>
                     <td><button class="ms-details-btn">Показать</button></td>
                 </tr>
