@@ -405,6 +405,15 @@
         const detailedTrades = [];
         let cash = 100000;
 
+        // Dynamic mode statistics
+        let dynamicModeStats = {
+            highVolPeriods: 0,
+            lowVolPeriods: 0,
+            avgMarketVol: 0,
+            minMarketVol: Infinity,
+            maxMarketVol: -Infinity
+        };
+
         const startIdx = settings.skipLastMonth ? settings.lookbackPeriod + 1 : settings.lookbackPeriod;
 
         // Check if we have enough data
@@ -417,6 +426,20 @@
         for (let i = startIdx; i < priceData.length - settings.holdingPeriod; i += settings.holdingPeriod) {
             const { selectedStocks, adjustedTopN } = calcMomentumAtIndex(i, tickers);
             const currentDate = new Date(priceData[i].Time);
+
+            // Track dynamic mode statistics
+            if (settings.dynamicMode) {
+                const marketVol = calcMarketVol(i, tickers);
+                dynamicModeStats.avgMarketVol += marketVol;
+                dynamicModeStats.minMarketVol = Math.min(dynamicModeStats.minMarketVol, marketVol);
+                dynamicModeStats.maxMarketVol = Math.max(dynamicModeStats.maxMarketVol, marketVol);
+
+                if (marketVol > settings.marketVolThreshold) {
+                    dynamicModeStats.highVolPeriods++;
+                } else {
+                    dynamicModeStats.lowVolPeriods++;
+                }
+            }
 
             if (selectedStocks.length > 0) {
                 let periodReturn = 0;
@@ -549,6 +572,11 @@
             years: totalYears.toFixed(1)
         });
 
+        // Finalize dynamic mode stats
+        if (settings.dynamicMode && detailedTrades.length > 0) {
+            dynamicModeStats.avgMarketVol = dynamicModeStats.avgMarketVol / detailedTrades.length;
+        }
+
         updateCharts(portfolioValues);
         updateRecommendations(currentRecommendations);
         updateHistory(detailedTrades);
@@ -556,7 +584,8 @@
             sharpeRatio: sharpeRatio,
             sortinoRatio: sortinoRatio,
             maxDrawdown: maxDrawdown,
-            annualReturn: annualReturn
+            annualReturn: annualReturn,
+            dynamicModeStats: dynamicModeStats
         });
     }
 
@@ -780,8 +809,28 @@
         if (settings.useRiskAdj) {
             tips.push('Риск-корректированный momentum учитывает волатильность при выборе акций.');
         }
-        if (settings.dynamicMode) {
-            tips.push('Динамический режим автоматически адаптирует размер портфеля к рыночным условиям.');
+        if (settings.dynamicMode && metrics.dynamicModeStats) {
+            const stats = metrics.dynamicModeStats;
+            const totalPeriods = stats.highVolPeriods + stats.lowVolPeriods;
+
+            if (totalPeriods > 0) {
+                tips.push('Динамический режим: рыночная волатильность ' + stats.avgMarketVol.toFixed(1) + '% (мин: ' +
+                    stats.minMarketVol.toFixed(1) + '%, макс: ' + stats.maxMarketVol.toFixed(1) + '%). Порог: ' +
+                    settings.marketVolThreshold + '%.');
+
+                tips.push('Периодов с высокой волатильностью (>' + settings.marketVolThreshold + '%): ' +
+                    stats.highVolPeriods + ' (' + (stats.highVolPeriods / totalPeriods * 100).toFixed(1) + '%). ' +
+                    'Периодов с низкой волатильностью: ' + stats.lowVolPeriods + ' (' +
+                    (stats.lowVolPeriods / totalPeriods * 100).toFixed(1) + '%).');
+
+                if (stats.highVolPeriods === 0) {
+                    tips.push('⚠️ Все периоды имели низкую волатильность. Попробуйте снизить порог для активации режима диверсификации.');
+                } else if (stats.lowVolPeriods === 0) {
+                    tips.push('⚠️ Все периоды имели высокую волатильность. Попробуйте повысить порог для активации режима концентрации.');
+                }
+            } else {
+                tips.push('Динамический режим активен, но статистика еще не собрана.');
+            }
         }
 
         const $tips = $('#ms-tips-content').empty();
