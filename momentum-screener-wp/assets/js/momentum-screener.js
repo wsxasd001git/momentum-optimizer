@@ -276,9 +276,20 @@
     }
 
     /**
-     * Calculate market volatility
+     * Get actively trading tickers at specific index
      */
-    function calcMarketVol(endIdx, tickers) {
+    function getActiveTickers(idx) {
+        const allTickers = tickersCache || Object.keys(priceData[0]).filter(k => k !== 'Time');
+        return allTickers.filter(ticker => {
+            // Check if ticker has valid price data at this index
+            return priceData[idx][ticker] && priceData[idx][ticker] > 0;
+        });
+    }
+
+    /**
+     * Calculate market volatility using only actively trading stocks
+     */
+    function calcMarketVol(endIdx) {
         const startIdx = Math.max(0, endIdx - settings.lookbackPeriod);
         const returns = [];
 
@@ -286,8 +297,12 @@
             let avgReturn = 0;
             let count = 0;
 
-            tickers.forEach(ticker => {
-                if (priceData[i][ticker] && priceData[i-1][ticker] && priceData[i-1][ticker] > 0) {
+            // Get tickers that were actively trading in period i
+            const activeTickers = getActiveTickers(i);
+
+            activeTickers.forEach(ticker => {
+                if (priceData[i][ticker] && priceData[i-1][ticker] &&
+                    priceData[i-1][ticker] > 0 && priceData[i][ticker] > 0) {
                     avgReturn += (priceData[i][ticker] - priceData[i-1][ticker]) / priceData[i-1][ticker];
                     count++;
                 }
@@ -306,21 +321,26 @@
     /**
      * Calculate momentum at specific index
      */
-    function calcMomentumAtIndex(i, tickers) {
+    function calcMomentumAtIndex(i) {
         const currentDate = new Date(priceData[i].Time);
         const momentumScores = [];
 
+        // Get actively trading tickers at this index
+        const activeTickers = getActiveTickers(i);
+
         let adjustedTopN = settings.topN;
         if (settings.dynamicMode) {
-            const marketVol = calcMarketVol(i, tickers);
+            const marketVol = calcMarketVol(i);
             if (marketVol > settings.marketVolThreshold) {
-                adjustedTopN = Math.min(Math.round(settings.topN * 1.5), 30);
+                // High volatility: diversify (+30%)
+                adjustedTopN = Math.min(Math.round(settings.topN * 1.3), 30);
             } else {
+                // Low volatility: concentrate (-30%)
                 adjustedTopN = Math.max(Math.round(settings.topN * 0.7), 5);
             }
         }
 
-        tickers.forEach(ticker => {
+        activeTickers.forEach(ticker => {
             const currentPrice = priceData[i][ticker];
             let pastPrice, dividendStartIdx, dividendEndIdx;
 
@@ -424,13 +444,13 @@
 
         // Run backtest
         for (let i = startIdx; i < priceData.length - settings.holdingPeriod; i += settings.holdingPeriod) {
-            const { selectedStocks, adjustedTopN } = calcMomentumAtIndex(i, tickers);
+            const { selectedStocks, adjustedTopN } = calcMomentumAtIndex(i);
             const currentDate = new Date(priceData[i].Time);
 
             // Track dynamic mode statistics and market volatility
             let marketVol = 0;
             if (settings.dynamicMode) {
-                marketVol = calcMarketVol(i, tickers);
+                marketVol = calcMarketVol(i);
                 dynamicModeStats.avgMarketVol += marketVol;
                 dynamicModeStats.minMarketVol = Math.min(dynamicModeStats.minMarketVol, marketVol);
                 dynamicModeStats.maxMarketVol = Math.max(dynamicModeStats.maxMarketVol, marketVol);
