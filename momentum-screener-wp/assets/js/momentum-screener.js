@@ -427,9 +427,10 @@
             const { selectedStocks, adjustedTopN } = calcMomentumAtIndex(i, tickers);
             const currentDate = new Date(priceData[i].Time);
 
-            // Track dynamic mode statistics
+            // Track dynamic mode statistics and market volatility
+            let marketVol = 0;
             if (settings.dynamicMode) {
-                const marketVol = calcMarketVol(i, tickers);
+                marketVol = calcMarketVol(i, tickers);
                 dynamicModeStats.avgMarketVol += marketVol;
                 dynamicModeStats.minMarketVol = Math.min(dynamicModeStats.minMarketVol, marketVol);
                 dynamicModeStats.maxMarketVol = Math.max(dynamicModeStats.maxMarketVol, marketVol);
@@ -494,7 +495,9 @@
                     sellDate: formatDate(new Date(priceData[i + settings.holdingPeriod].Time)),
                     totalReturn: (periodReturn * 100).toFixed(2),
                     stockCount: selectedStocks.length,
-                    stocks: stockDetails
+                    stocks: stockDetails,
+                    marketVol: settings.dynamicMode ? marketVol.toFixed(1) : null,
+                    portfolioSize: adjustedTopN
                 });
             }
         }
@@ -735,11 +738,20 @@
 
         trades.forEach((trade, idx) => {
             const returnClass = parseFloat(trade.totalReturn) >= 0 ? 'ms-positive' : 'ms-negative';
+
+            // Show market vol and adjusted portfolio size if dynamic mode
+            let dynamicInfo = '';
+            if (trade.marketVol !== null) {
+                const isHigh = parseFloat(trade.marketVol) > settings.marketVolThreshold;
+                const volClass = isHigh ? 'ms-negative' : 'ms-positive';
+                dynamicInfo = `<br><small class="${volClass}">Рын. вол: ${trade.marketVol}% (портфель: ${trade.portfolioSize})</small>`;
+            }
+
             const row = `
                 <tr class="ms-history-row" data-idx="${idx}">
                     <td>${trade.date}</td>
                     <td>${trade.sellDate}</td>
-                    <td>${trade.stockCount}</td>
+                    <td>${trade.stockCount}${dynamicInfo}</td>
                     <td class="${returnClass}">${trade.totalReturn}%</td>
                     <td><button class="ms-details-btn">Показать</button></td>
                 </tr>

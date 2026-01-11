@@ -116,7 +116,7 @@ if (!defined('ABSPATH')) {
                     </div>
                     <div class="ms-option-body" id="ms-dynamic-body" style="display: none;">
                         <label><?php esc_html_e('Порог рыночной волатильности:', 'momentum-screener'); ?> <span id="ms-marketvol-value">25</span>%</label>
-                        <input type="range" id="ms-marketvol" min="15" max="50" step="5" value="25">
+                        <input type="range" id="ms-marketvol" min="5" max="100" step="5" value="25">
                         <p><?php esc_html_e('При высокой волатильности увеличиваем диверсификацию', 'momentum-screener'); ?></p>
                     </div>
                 </div>
