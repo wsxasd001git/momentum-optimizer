@@ -170,7 +170,7 @@
 
                     // Parse prices sheet
                     const sheet = workbook.Sheets['цены'];
-                    priceData = XLSX.utils.sheet_to_json(sheet);
+                    priceData = XLSX.utils.sheet_to_json(sheet, { defval: null });
 
                     if (!priceData || priceData.length === 0) {
                         throw new Error('Файл пуст');
@@ -182,7 +182,7 @@
 
                     if (divSheetName) {
                         const divSheet = workbook.Sheets[divSheetName];
-                        dividendData = XLSX.utils.sheet_to_json(divSheet);
+                        dividendData = XLSX.utils.sheet_to_json(divSheet, { defval: null });
                     } else {
                         dividendData = null;
                     }
