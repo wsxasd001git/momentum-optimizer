@@ -168,9 +168,17 @@ const MomentumOptimizer = () => {
         if (currentPrice && pastPrice && currentPrice > 0 && pastPrice > 0) {
           const prices = [];
           const volStartIdx = skipLastMonth ? i - lookbackPeriod - 1 : i - lookbackPeriod;
+          const expectedDataPoints = i - Math.max(0, volStartIdx) + 1;
+
           for (let j = Math.max(0, volStartIdx); j <= i; j++) {
-            if (data[j][ticker]) prices.push(data[j][ticker]);
+            if (data[j][ticker] && data[j][ticker] > 0) {
+              prices.push(data[j][ticker]);
+            }
           }
+
+          // Skip ticker if data is incomplete (missing prices in period)
+          if (prices.length < expectedDataPoints) return;
+
           const vol = calcVol(prices);
           
           if (useVolFilter && vol > maxVol) return;

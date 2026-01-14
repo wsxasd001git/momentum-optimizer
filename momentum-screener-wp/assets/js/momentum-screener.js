@@ -357,12 +357,20 @@
             }
 
             if (currentPrice && pastPrice && currentPrice > 0 && pastPrice > 0) {
-                // Calculate volatility
+                // Calculate volatility and check for data continuity
                 const prices = [];
                 const volStartIdx = settings.skipLastMonth ? i - settings.lookbackPeriod - 1 : i - settings.lookbackPeriod;
+                const expectedDataPoints = i - Math.max(0, volStartIdx) + 1;
+
                 for (let j = Math.max(0, volStartIdx); j <= i; j++) {
-                    if (priceData[j][ticker]) prices.push(priceData[j][ticker]);
+                    if (priceData[j][ticker] && priceData[j][ticker] > 0) {
+                        prices.push(priceData[j][ticker]);
+                    }
                 }
+
+                // Skip ticker if data is incomplete (missing prices in period)
+                if (prices.length < expectedDataPoints) return;
+
                 const vol = calcVol(prices);
 
                 // Apply volatility filter
