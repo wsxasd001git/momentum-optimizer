@@ -37,7 +37,7 @@ const MomentumOptimizer = () => {
         }
         
         const sheet = workbook.Sheets['цены'];
-        const jsonData = XLSX.utils.sheet_to_json(sheet);
+        const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: null });
         
         if (!jsonData || jsonData.length === 0) {
           throw new Error('Файл пуст');
@@ -50,7 +50,7 @@ const MomentumOptimizer = () => {
         
         if (divSheetName) {
           const divSheet = workbook.Sheets[divSheetName];
-          const divData = XLSX.utils.sheet_to_json(divSheet);
+          const divData = XLSX.utils.sheet_to_json(divSheet, { defval: null });
           setDividendData(divData);
         } else {
           setDividendData(null);
