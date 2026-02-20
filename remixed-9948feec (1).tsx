@@ -168,9 +168,17 @@ const MomentumOptimizer = () => {
         if (currentPrice && pastPrice && currentPrice > 0 && pastPrice > 0) {
           const prices = [];
           const volStartIdx = skipLastMonth ? i - lookbackPeriod - 1 : i - lookbackPeriod;
+          const expectedDataPoints = i - Math.max(0, volStartIdx) + 1;
+
           for (let j = Math.max(0, volStartIdx); j <= i; j++) {
-            if (data[j][ticker]) prices.push(data[j][ticker]);
+            if (data[j][ticker] && data[j][ticker] > 0) {
+              prices.push(data[j][ticker]);
+            }
           }
+
+          // Skip ticker if data is incomplete (missing prices in period)
+          if (prices.length < expectedDataPoints) return;
+
           const vol = calcVol(prices);
           
           if (useVolFilter && vol > maxVol) return;
@@ -314,17 +322,24 @@ const MomentumOptimizer = () => {
     const annualReturn = ((Math.pow(cash / 100000, 1 / totalYears) - 1) * 100);
     
     const periods = portfolioValues.length;
+    const periodsPerYear = 12 / holdingPeriod;
     const avgReturn = portfolioValues.reduce((sum, v) => sum + v.return, 0) / periods;
     const volatility = Math.sqrt(
       portfolioValues.reduce((sum, v) => sum + Math.pow(v.return - avgReturn, 2), 0) / periods
     );
-    const sharpeRatio = volatility > 0 ? avgReturn / volatility : 0;
-    
-    const negReturns = portfolioValues.filter(v => v.return < 0).map(v => v.return);
-    const downVol = negReturns.length > 0 
-      ? Math.sqrt(negReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / negReturns.length)
-      : 0;
-    const sortinoRatio = downVol > 0 ? avgReturn / downVol : sharpeRatio;
+
+    // Annualized Sharpe Ratio
+    const annualAvgReturn = avgReturn * periodsPerYear;
+    const annualVol = volatility * Math.sqrt(periodsPerYear);
+    const sharpeRatio = annualVol > 0 ? annualAvgReturn / annualVol : 0;
+
+    // Sortino Ratio: downside deviation from average, divided by all periods
+    const downsideReturns = portfolioValues.filter(v => v.return < avgReturn).map(v => v.return);
+    const downVol = Math.sqrt(
+      downsideReturns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / periods
+    );
+    const annualDownVol = downVol * Math.sqrt(periodsPerYear);
+    const sortinoRatio = annualDownVol > 0 ? annualAvgReturn / annualDownVol : sharpeRatio;
 
     const drawdowns = [];
     let peak = portfolioValues[0].value;
