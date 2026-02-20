@@ -569,17 +569,24 @@
         const annualReturn = totalYears > 0 ? (Math.pow(cash / 100000, 1 / totalYears) - 1) * 100 : 0;
 
         const periods = portfolioValues.length;
+        const periodsPerYear = 12 / settings.holdingPeriod;
         const avgReturn = portfolioValues.reduce((sum, v) => sum + v.return, 0) / periods;
         const volatility = Math.sqrt(
             portfolioValues.reduce((sum, v) => sum + Math.pow(v.return - avgReturn, 2), 0) / periods
         );
-        const sharpeRatio = volatility > 0 ? avgReturn / volatility : 0;
 
-        const negReturns = portfolioValues.filter(v => v.return < 0).map(v => v.return);
-        const downVol = negReturns.length > 0
-            ? Math.sqrt(negReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / negReturns.length)
-            : 0;
-        const sortinoRatio = downVol > 0 ? avgReturn / downVol : sharpeRatio;
+        // Annualized Sharpe Ratio
+        const annualAvgReturn = avgReturn * periodsPerYear;
+        const annualVol = volatility * Math.sqrt(periodsPerYear);
+        const sharpeRatio = annualVol > 0 ? annualAvgReturn / annualVol : 0;
+
+        // Sortino Ratio: downside deviation from average, divided by all periods
+        const downsideReturns = portfolioValues.filter(v => v.return < avgReturn).map(v => v.return);
+        const downVol = Math.sqrt(
+            downsideReturns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / periods
+        );
+        const annualDownVol = downVol * Math.sqrt(periodsPerYear);
+        const sortinoRatio = annualDownVol > 0 ? annualAvgReturn / annualDownVol : sharpeRatio;
 
         // Calculate max drawdown
         let peak = portfolioValues[0].value;
