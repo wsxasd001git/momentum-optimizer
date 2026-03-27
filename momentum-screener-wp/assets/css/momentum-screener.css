@@ -3,13 +3,28 @@
  * Main Styles
  */
 
+/* ── Design tokens ──────────────────────────────────────────── */
+:root {
+    --color-primary:        #557C4B;
+    --color-primary-dark:   #3D5C35;
+    --color-primary-light:  #7FA870;
+    --color-negative:       #E32D43;
+    --color-neutral-bg:     #ECE7DE;
+    --color-neutral-card:   #F5F0E8;
+    --color-white:          #FFFFFF;
+    --color-border:         #D8D2C8;
+    --color-text-primary:   #1e293b;
+    --color-text-secondary: #64748b;
+    --color-text-muted:     #94a3b8;
+}
+
 /* Container */
 .momentum-screener-container {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     max-width: 1400px;
     margin: 0 auto;
     padding: 20px;
-    background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+    background: var(--color-neutral-bg);
     border-radius: 16px;
 }
 
@@ -22,19 +37,19 @@
 .ms-title {
     font-size: 2.5rem;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--color-text-primary);
     margin: 0 0 10px 0;
 }
 
 .ms-subtitle {
     font-size: 1rem;
-    color: #64748b;
+    color: var(--color-text-secondary);
     margin: 0 0 5px 0;
 }
 
 .ms-stats {
     font-size: 0.875rem;
-    color: #475569;
+    color: var(--color-text-secondary);
 }
 
 /* Loading */
@@ -46,8 +61,8 @@
 .ms-spinner {
     width: 50px;
     height: 50px;
-    border: 4px solid #e2e8f0;
-    border-top-color: #3b82f6;
+    border: 4px solid var(--color-border);
+    border-top-color: var(--color-primary);
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin: 0 auto 20px;
@@ -67,7 +82,7 @@
 }
 
 .ms-error p {
-    color: #dc2626;
+    color: var(--color-negative);
     margin: 0;
 }
 
@@ -80,36 +95,37 @@
 }
 
 .ms-control-group {
-    background: #ffffff;
+    background: var(--color-white);
     border-radius: 12px;
     padding: 20px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
+    border: 1px solid var(--color-border);
 }
 
 .ms-control-group label {
     display: block;
     font-weight: 600;
-    color: #000000;
+    color: var(--color-text-primary);
     margin-bottom: 12px;
 }
 
 .ms-control-group input[type="range"] {
     width: 100%;
-    height: 8px;
-    border-radius: 4px;
-    background: #e2e8f0;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--color-border);
     outline: none;
     -webkit-appearance: none;
 }
 
 .ms-control-group input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
-    background: #3b82f6;
+    background: var(--color-primary);
     cursor: pointer;
+    box-shadow: 0 1px 3px rgba(85, 124, 75, 0.4);
 }
 
 .ms-control-value {
@@ -117,13 +133,13 @@
     text-align: center;
     font-size: 1.75rem;
     font-weight: 700;
-    color: #3b82f6;
+    color: var(--color-primary);
     margin-top: 12px;
 }
 
 .ms-control-desc {
     font-size: 0.75rem;
-    color: #64748b;
+    color: var(--color-text-secondary);
     margin-top: 8px;
 }
 
@@ -140,15 +156,15 @@
 }
 
 .ms-option {
-    background: #f2c57c;
+    background: var(--color-white);
     border-radius: 12px;
     padding: 16px;
-    border: 1px solid #f2c57c;
+    border: 1px solid var(--color-border);
 }
 
 .ms-option-advanced {
-    background: #dad7cd;
-    border-color: #4a7c59;
+    background: var(--color-neutral-card);
+    border-color: var(--color-primary-light);
 }
 
 .ms-option-header {
@@ -160,13 +176,13 @@
 .ms-option h4 {
     font-size: 0.875rem;
     font-weight: 600;
-    color: #1e293b;
+    color: var(--color-text-primary);
     margin: 0 0 4px 0;
 }
 
 .ms-option p {
     font-size: 0.75rem;
-    color: #475569;
+    color: var(--color-text-secondary);
     margin: 0;
 }
 
@@ -177,15 +193,15 @@
     font-size: 0.875rem;
     cursor: pointer;
     transition: all 0.2s;
-    border: 1px solid #d1d5db;
-    background: #ffffff;
-    color: #6b7280;
+    border: 1px solid var(--color-border);
+    background: var(--color-white);
+    color: var(--color-text-secondary);
 }
 
 .ms-toggle.active {
-    background: #10b981;
-    color: #ffffff;
-    border-color: #10b981;
+    background: var(--color-primary);
+    color: var(--color-white);
+    border-color: var(--color-primary);
 }
 
 .ms-toggle-small {
@@ -195,34 +211,34 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
-    border: 1px solid #d1d5db;
-    background: #ffffff;
-    color: #6b7280;
+    border: 1px solid var(--color-border);
+    background: var(--color-white);
+    color: var(--color-text-secondary);
 }
 
 .ms-toggle-small.active {
-    background: #10b981;
-    color: #ffffff;
-    border-color: #10b981;
+    background: var(--color-primary);
+    color: var(--color-white);
+    border-color: var(--color-primary);
 }
 
 .ms-option-body {
     margin-top: 12px;
     padding-top: 12px;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    border-top: 1px solid var(--color-border);
 }
 
 .ms-option-body label {
     font-size: 0.75rem;
-    color: #374151;
+    color: var(--color-text-primary);
 }
 
 .ms-option-body input[type="range"] {
     width: 100%;
-    height: 8px;
+    height: 6px;
     margin: 8px 0;
-    border-radius: 4px;
-    background: #e2e8f0;
+    border-radius: 3px;
+    background: var(--color-border);
     -webkit-appearance: none;
 }
 
@@ -231,8 +247,9 @@
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: #3b82f6;
+    background: var(--color-primary);
     cursor: pointer;
+    box-shadow: 0 1px 3px rgba(85, 124, 75, 0.4);
 }
 
 .ms-option-sub {
@@ -241,9 +258,9 @@
     align-items: center;
     margin-top: 12px;
     padding-top: 12px;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    border-top: 1px solid var(--color-border);
     font-size: 0.75rem;
-    color: #374151;
+    color: var(--color-text-primary);
 }
 
 /* Metrics */
@@ -255,35 +272,35 @@
 }
 
 .ms-metric {
-    background: #ffffff;
+    background: var(--color-white);
     border-radius: 12px;
     padding: 16px;
     text-align: center;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--color-border);
 }
 
 .ms-metric-primary {
-    color: #ffffff;
+    color: var(--color-white);
 }
 
 .ms-metric-primary:nth-child(1) {
-    background: #557C4B;
+    background: var(--color-primary);
 }
 
 .ms-metric-primary:nth-child(2) {
-    background: #557C4B;
+    background: var(--color-primary);
 }
 
 .ms-metric-primary:nth-child(3) {
-    background: #557C4B;
+    background: var(--color-primary);
 }
 
 .ms-metric-primary:nth-child(4) {
-    background: #557C4B;
+    background: var(--color-primary);
 }
 
 .ms-metric-primary:nth-child(5) {
-    background: #EF6F6C;
+    background: var(--color-negative);
 }
 
 .ms-metric-label {
@@ -307,11 +324,11 @@
 }
 
 .ms-metrics-secondary .ms-metric-label {
-    color: #64748b;
+    color: var(--color-text-secondary);
 }
 
 .ms-metrics-secondary .ms-metric-value {
-    color: #1e293b;
+    color: var(--color-text-primary);
     font-size: 1.5rem;
 }
 
@@ -321,18 +338,18 @@
 }
 
 .ms-chart-container {
-    background: #ffffff;
+    background: var(--color-white);
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 20px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
+    border: 1px solid var(--color-border);
 }
 
 .ms-chart-container h3 {
     font-size: 1.25rem;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--color-text-primary);
     margin: 0 0 20px 0;
 }
 
@@ -342,11 +359,13 @@
 
 /* Recommendations */
 .ms-recommendations {
-    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    background: var(--color-white);
     border-radius: 12px;
     padding: 24px;
     margin-bottom: 30px;
-    border: 2px solid #10b981;
+    border: 1px solid var(--color-border);
+    border-left: 4px solid var(--color-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
 }
 
 .ms-recommendations-header {
@@ -359,13 +378,13 @@
 .ms-recommendations-header h3 {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--color-text-primary);
     margin: 0 0 4px 0;
 }
 
 .ms-recommendations-header p {
     font-size: 0.875rem;
-    color: #475569;
+    color: var(--color-text-secondary);
     margin: 0;
 }
 
@@ -380,13 +399,13 @@
 .ms-recommendations-info .ms-label {
     display: block;
     font-size: 0.75rem;
-    color: #64748b;
+    color: var(--color-text-secondary);
 }
 
 .ms-recommendations-info .ms-value {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--color-text-primary);
 }
 
 .ms-stocks-grid {
@@ -397,10 +416,11 @@
 }
 
 .ms-stock-card {
-    background: #ffffff;
+    background: var(--color-white);
     border-radius: 8px;
     padding: 16px;
-    border: 2px solid #10b981;
+    border: 1px solid var(--color-border);
+    border-top: 3px solid var(--color-primary);
 }
 
 .ms-stock-header {
@@ -414,22 +434,23 @@
     display: block;
     font-size: 1.25rem;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--color-text-primary);
 }
 
 .ms-stock-weight {
     display: block;
     font-size: 0.75rem;
-    color: #10b981;
+    color: var(--color-primary);
+    font-weight: 600;
 }
 
 .ms-stock-price {
     font-weight: 600;
-    color: #1e293b;
+    color: var(--color-text-primary);
 }
 
 .ms-stock-details {
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--color-border);
     padding-top: 12px;
 }
 
@@ -441,78 +462,78 @@
 }
 
 .ms-stock-row span:first-child {
-    color: #64748b;
+    color: var(--color-text-secondary);
 }
 
 .ms-positive {
-    color: #10b981 !important;
+    color: var(--color-primary) !important;
     font-weight: 600;
 }
 
 .ms-negative {
-    color: #ef4444 !important;
+    color: var(--color-negative) !important;
     font-weight: 600;
 }
 
 .ms-blue {
-    color: #3b82f6 !important;
+    color: var(--color-primary) !important;
     font-weight: 600;
 }
 
 .high-vol {
-    color: #ef4444 !important;
+    color: var(--color-negative) !important;
 }
 
 .ms-stock-rank {
     margin-top: 12px;
     padding-top: 12px;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--color-border);
 }
 
 .ms-stock-rank span {
     font-size: 0.625rem;
-    color: #64748b;
+    color: var(--color-text-secondary);
 }
 
 .ms-stock-rank strong {
     display: block;
     font-size: 1.125rem;
-    color: #1e293b;
+    color: var(--color-text-primary);
 }
 
 .ms-recommendations-tip {
-    background: #dcfce7;
+    background: var(--color-neutral-card);
     border-radius: 8px;
     padding: 12px;
-    border: 1px solid #86efac;
+    border: 1px solid var(--color-primary-light);
 }
 
 .ms-recommendations-tip p {
     margin: 0;
     font-size: 0.875rem;
-    color: #166534;
+    color: var(--color-primary-dark);
 }
 
 /* History */
 .ms-history {
-    background: #ffffff;
+    background: var(--color-white);
     border-radius: 12px;
     padding: 24px;
     margin-bottom: 30px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
+    border: 1px solid var(--color-border);
 }
 
 .ms-history h3 {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--color-text-primary);
     margin: 0 0 8px 0;
 }
 
 .ms-history-desc {
     font-size: 0.875rem;
-    color: #64748b;
+    color: var(--color-text-secondary);
     margin: 0 0 20px 0;
 }
 
@@ -525,27 +546,28 @@
     text-align: left;
     padding: 12px 8px;
     font-weight: 600;
-    color: #374151;
-    border-bottom: 2px solid #e2e8f0;
+    color: var(--color-text-primary);
+    border-bottom: 2px solid var(--color-border);
 }
 
 .ms-history-table td {
     padding: 12px 8px;
-    border-bottom: 1px solid #f1f5f9;
-    color: #475569;
+    border-bottom: 1px solid var(--color-neutral-bg);
+    color: var(--color-text-secondary);
 }
 
 .ms-history-row:hover {
-    background: #f8fafc;
+    background: var(--color-neutral-card);
     cursor: pointer;
 }
 
 .ms-details-btn {
     background: none;
     border: none;
-    color: #3b82f6;
+    color: var(--color-primary);
     cursor: pointer;
     font-size: 0.875rem;
+    font-weight: 600;
 }
 
 .ms-details-btn:hover {
@@ -553,7 +575,7 @@
 }
 
 .ms-history-details td {
-    background: #f8fafc;
+    background: var(--color-neutral-card);
     padding: 16px;
 }
 
@@ -564,10 +586,10 @@
 }
 
 .ms-detail-card {
-    background: #ffffff;
+    background: var(--color-white);
     border-radius: 8px;
     padding: 12px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--color-border);
 }
 
 .ms-detail-header {
@@ -580,12 +602,12 @@
 .ms-detail-ticker {
     font-weight: 700;
     font-size: 1rem;
-    color: #1e293b;
+    color: var(--color-text-primary);
 }
 
 .ms-detail-body {
     font-size: 0.75rem;
-    color: #64748b;
+    color: var(--color-text-secondary);
 }
 
 .ms-detail-body div {
@@ -594,22 +616,23 @@
 
 /* Tips */
 .ms-tips {
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    background: var(--color-neutral-card);
     border-radius: 12px;
     padding: 24px;
-    border: 1px solid #93c5fd;
+    border: 1px solid var(--color-border);
+    border-left: 4px solid var(--color-primary-light);
 }
 
 .ms-tips h3 {
     font-size: 1.25rem;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--color-text-primary);
     margin: 0 0 16px 0;
 }
 
 .ms-tips p {
     font-size: 0.875rem;
-    color: #374151;
+    color: var(--color-text-primary);
     margin: 0 0 8px 0;
 }
 
