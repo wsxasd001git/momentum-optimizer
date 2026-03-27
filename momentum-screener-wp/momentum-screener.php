@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('MOMENTUM_SCREENER_VERSION', '1.1.0');
+define('MOMENTUM_SCREENER_VERSION', '1.2.0');
 define('MOMENTUM_SCREENER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('MOMENTUM_SCREENER_PLUGIN_URL', plugin_dir_url(__FILE__));
 
