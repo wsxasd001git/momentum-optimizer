@@ -23,8 +23,9 @@
         useVolFilter: false,
         maxVol: 50,
         useRiskAdj: false,
-        dynamicMode: false,
-        marketVolThreshold: 25
+        useReturnFilter: false,
+        minReturn: 30,
+        maxReturn: 160
     };
 
     /**
@@ -80,9 +81,15 @@
             debouncedRecalculate();
         });
 
-        $('#ms-marketvol').on('input', function() {
-            settings.marketVolThreshold = parseInt($(this).val());
-            $('#ms-marketvol-value').text(settings.marketVolThreshold);
+        $('#ms-minreturn').on('input', function() {
+            settings.minReturn = parseInt($(this).val());
+            $('#ms-minreturn-value').text(settings.minReturn);
+            debouncedRecalculate();
+        });
+
+        $('#ms-maxreturn').on('input', function() {
+            settings.maxReturn = parseInt($(this).val());
+            $('#ms-maxreturn-value').text(settings.maxReturn);
             debouncedRecalculate();
         });
 
@@ -115,10 +122,10 @@
             debouncedRecalculate();
         });
 
-        $('#ms-dynamic-toggle').on('click', function() {
-            settings.dynamicMode = !settings.dynamicMode;
-            updateToggle($(this), settings.dynamicMode);
-            $('#ms-dynamic-body').toggle(settings.dynamicMode);
+        $('#ms-returnfilter-toggle').on('click', function() {
+            settings.useReturnFilter = !settings.useReturnFilter;
+            updateToggle($(this), settings.useReturnFilter);
+            $('#ms-returnfilter-body').toggle(settings.useReturnFilter);
             debouncedRecalculate();
         });
     }
@@ -287,38 +294,6 @@
     }
 
     /**
-     * Calculate market volatility using only actively trading stocks
-     */
-    function calcMarketVol(endIdx) {
-        const startIdx = Math.max(0, endIdx - settings.lookbackPeriod);
-        const returns = [];
-
-        for (let i = startIdx + 1; i <= endIdx && i < priceData.length; i++) {
-            let avgReturn = 0;
-            let count = 0;
-
-            // Get tickers that were actively trading in period i
-            const activeTickers = getActiveTickers(i);
-
-            activeTickers.forEach(ticker => {
-                if (priceData[i][ticker] && priceData[i-1][ticker] &&
-                    priceData[i-1][ticker] > 0 && priceData[i][ticker] > 0) {
-                    avgReturn += (priceData[i][ticker] - priceData[i-1][ticker]) / priceData[i-1][ticker];
-                    count++;
-                }
-            });
-
-            if (count > 0) returns.push(avgReturn / count);
-        }
-
-        if (returns.length === 0) return 0;
-
-        const avg = returns.reduce((a, b) => a + b, 0) / returns.length;
-        const variance = returns.reduce((sum, r) => sum + Math.pow(r - avg, 2), 0) / returns.length;
-        return Math.sqrt(variance) * 100;
-    }
-
-    /**
      * Calculate momentum at specific index
      */
     function calcMomentumAtIndex(i) {
@@ -327,18 +302,6 @@
 
         // Get actively trading tickers at this index
         const activeTickers = getActiveTickers(i);
-
-        let adjustedTopN = settings.topN;
-        if (settings.dynamicMode) {
-            const marketVol = calcMarketVol(i);
-            if (marketVol > settings.marketVolThreshold) {
-                // High volatility: diversify (+30%)
-                adjustedTopN = Math.min(Math.round(settings.topN * 1.3), 30);
-            } else {
-                // Low volatility: concentrate (-30%)
-                adjustedTopN = Math.max(Math.round(settings.topN * 0.7), 5);
-            }
-        }
 
         activeTickers.forEach(ticker => {
             const currentPrice = priceData[i][ticker];
@@ -395,6 +358,12 @@
                     totalReturn = priceReturn + dividendReturn;
                 }
 
+                // Apply return bounds filter
+                if (settings.useReturnFilter) {
+                    const returnPct = totalReturn * 100;
+                    if (returnPct < settings.minReturn || returnPct > settings.maxReturn) return;
+                }
+
                 // Calculate momentum score
                 let momentum = totalReturn;
                 if (settings.useRiskAdj && vol > 0) {
@@ -415,8 +384,7 @@
         momentumScores.sort((a, b) => b.momentum - a.momentum);
 
         return {
-            selectedStocks: momentumScores.slice(0, adjustedTopN),
-            adjustedTopN: adjustedTopN,
+            selectedStocks: momentumScores.slice(0, settings.topN),
             date: currentDate
         };
     }
@@ -433,15 +401,6 @@
         const detailedTrades = [];
         let cash = 100000;
 
-        // Dynamic mode statistics
-        let dynamicModeStats = {
-            highVolPeriods: 0,
-            lowVolPeriods: 0,
-            avgMarketVol: 0,
-            minMarketVol: Infinity,
-            maxMarketVol: -Infinity
-        };
-
         const startIdx = settings.skipLastMonth ? settings.lookbackPeriod + 1 : settings.lookbackPeriod;
 
         // Check if we have enough data
@@ -452,23 +411,8 @@
 
         // Run backtest
         for (let i = startIdx; i < priceData.length - settings.holdingPeriod; i += settings.holdingPeriod) {
-            const { selectedStocks, adjustedTopN } = calcMomentumAtIndex(i);
+            const { selectedStocks } = calcMomentumAtIndex(i);
             const currentDate = new Date(priceData[i].Time);
-
-            // Track dynamic mode statistics and market volatility
-            let marketVol = 0;
-            if (settings.dynamicMode) {
-                marketVol = calcMarketVol(i);
-                dynamicModeStats.avgMarketVol += marketVol;
-                dynamicModeStats.minMarketVol = Math.min(dynamicModeStats.minMarketVol, marketVol);
-                dynamicModeStats.maxMarketVol = Math.max(dynamicModeStats.maxMarketVol, marketVol);
-
-                if (marketVol > settings.marketVolThreshold) {
-                    dynamicModeStats.highVolPeriods++;
-                } else {
-                    dynamicModeStats.lowVolPeriods++;
-                }
-            }
 
             if (selectedStocks.length > 0) {
                 let periodReturn = 0;
@@ -523,9 +467,7 @@
                     sellDate: formatDate(new Date(priceData[i + settings.holdingPeriod].Time)),
                     totalReturn: (periodReturn * 100).toFixed(2),
                     stockCount: selectedStocks.length,
-                    stocks: stockDetails,
-                    marketVol: settings.dynamicMode ? marketVol.toFixed(1) : null,
-                    portfolioSize: adjustedTopN
+                    stocks: stockDetails
                 });
             }
         }
@@ -542,8 +484,8 @@
         const lastIdx = priceData.length - 1;
         let currentRecommendations = null;
         if (lastIdx >= startIdx) {
-            const { selectedStocks, adjustedTopN, date } = calcMomentumAtIndex(lastIdx, tickers);
-            const marketVol = calcMarketVol(lastIdx, tickers);
+            const { selectedStocks, date } = calcMomentumAtIndex(lastIdx);
+            const portfolioSize = selectedStocks.length;
 
             currentRecommendations = {
                 date: formatDate(date),
@@ -553,11 +495,10 @@
                     momentum: (s.momentum * 100).toFixed(2),
                     rawReturn: (s.rawReturn * 100).toFixed(2),
                     volatility: s.volatility.toFixed(2),
-                    weight: (100 / adjustedTopN).toFixed(1),
+                    weight: (100 / settings.topN).toFixed(1),
                     rank: idx + 1
                 })),
-                portfolioSize: adjustedTopN,
-                marketVolatility: marketVol.toFixed(2)
+                portfolioSize: portfolioSize
             };
         }
 
@@ -610,11 +551,6 @@
             years: totalYears.toFixed(1)
         });
 
-        // Finalize dynamic mode stats
-        if (settings.dynamicMode && detailedTrades.length > 0) {
-            dynamicModeStats.avgMarketVol = dynamicModeStats.avgMarketVol / detailedTrades.length;
-        }
-
         updateCharts(portfolioValues);
         updateRecommendations(currentRecommendations);
         updateHistory(detailedTrades);
@@ -622,8 +558,7 @@
             sharpeRatio: sharpeRatio,
             sortinoRatio: sortinoRatio,
             maxDrawdown: maxDrawdown,
-            annualReturn: annualReturn,
-            dynamicModeStats: dynamicModeStats
+            annualReturn: annualReturn
         });
     }
 
@@ -726,7 +661,6 @@
 
         $('#ms-recommendations-date').text('Акции для покупки на ' + recs.date);
         $('#ms-portfolio-size').text(recs.portfolioSize);
-        $('#ms-market-vol').text(recs.marketVolatility + '%');
 
         const $grid = $('#ms-stocks-grid').empty();
 
@@ -848,28 +782,8 @@
         if (settings.useRiskAdj) {
             tips.push('Риск-корректированный momentum учитывает волатильность при выборе акций.');
         }
-        if (settings.dynamicMode && metrics.dynamicModeStats) {
-            const stats = metrics.dynamicModeStats;
-            const totalPeriods = stats.highVolPeriods + stats.lowVolPeriods;
-
-            if (totalPeriods > 0) {
-                tips.push('Динамический режим: рыночная волатильность ' + stats.avgMarketVol.toFixed(1) + '% (мин: ' +
-                    stats.minMarketVol.toFixed(1) + '%, макс: ' + stats.maxMarketVol.toFixed(1) + '%). Порог: ' +
-                    settings.marketVolThreshold + '%.');
-
-                tips.push('Периодов с высокой волатильностью (>' + settings.marketVolThreshold + '%): ' +
-                    stats.highVolPeriods + ' (' + (stats.highVolPeriods / totalPeriods * 100).toFixed(1) + '%). ' +
-                    'Периодов с низкой волатильностью: ' + stats.lowVolPeriods + ' (' +
-                    (stats.lowVolPeriods / totalPeriods * 100).toFixed(1) + '%).');
-
-                if (stats.highVolPeriods === 0) {
-                    tips.push('⚠️ Все периоды имели низкую волатильность. Попробуйте снизить порог для активации режима диверсификации.');
-                } else if (stats.lowVolPeriods === 0) {
-                    tips.push('⚠️ Все периоды имели высокую волатильность. Попробуйте повысить порог для активации режима концентрации.');
-                }
-            } else {
-                tips.push('Динамический режим активен, но статистика еще не собрана.');
-            }
+        if (settings.useReturnFilter) {
+            tips.push('Фильтр границ доходности активен: от ' + settings.minReturn + '% до ' + settings.maxReturn + '%. Исключаются перегретые акции и акции без импульса.');
         }
 
         const $tips = $('#ms-tips-content').empty();
