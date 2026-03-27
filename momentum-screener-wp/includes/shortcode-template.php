@@ -15,7 +15,6 @@ if (!defined('ABSPATH')) {
 
     <!-- Header -->
     <div class="ms-header">
-        <h2 class="ms-title"><?php esc_html_e('Оптимизатор Momentum Стратегии', 'momentum-screener'); ?></h2>
         <p class="ms-subtitle"><?php esc_html_e('Российский рынок акций', 'momentum-screener'); ?></p>
         <div class="ms-stats" id="ms-stats"></div>
     </div>
@@ -109,15 +108,17 @@ if (!defined('ABSPATH')) {
 
                 <div class="ms-option ms-option-advanced">
                     <div class="ms-option-header">
-                        <h4><?php esc_html_e('Динамический режим', 'momentum-screener'); ?></h4>
-                        <button class="ms-toggle" id="ms-dynamic-toggle" data-enabled="false">
+                        <h4><?php esc_html_e('Фильтр границ доходности', 'momentum-screener'); ?></h4>
+                        <button class="ms-toggle" id="ms-returnfilter-toggle" data-enabled="false">
                             <?php esc_html_e('ВЫКЛ', 'momentum-screener'); ?>
                         </button>
                     </div>
-                    <div class="ms-option-body" id="ms-dynamic-body" style="display: none;">
-                        <label><?php esc_html_e('Порог рыночной волатильности:', 'momentum-screener'); ?> <span id="ms-marketvol-value">25</span>%</label>
-                        <input type="range" id="ms-marketvol" min="5" max="100" step="1" value="25">
-                        <p><?php esc_html_e('Низкая волатильность: -30% акций (мин. 5). Высокая: +30% акций (макс. 30)', 'momentum-screener'); ?></p>
+                    <div class="ms-option-body" id="ms-returnfilter-body" style="display: none;">
+                        <label><?php esc_html_e('Мин. доходность:', 'momentum-screener'); ?> <span id="ms-minreturn-value">30</span>%</label>
+                        <input type="range" id="ms-minreturn" min="-50" max="100" step="5" value="30">
+                        <label style="margin-top:8px;"><?php esc_html_e('Макс. доходность:', 'momentum-screener'); ?> <span id="ms-maxreturn-value">160</span>%</label>
+                        <input type="range" id="ms-maxreturn" min="50" max="300" step="10" value="160">
+                        <p><?php esc_html_e('Исключает акции за пределами диапазона доходности. Оптимум: от +30% до 160%.', 'momentum-screener'); ?></p>
                     </div>
                 </div>
             </div>
@@ -185,10 +186,6 @@ if (!defined('ABSPATH')) {
                     <div>
                         <span class="ms-label"><?php esc_html_e('Размер портфеля', 'momentum-screener'); ?></span>
                         <span class="ms-value" id="ms-portfolio-size">-</span>
-                    </div>
-                    <div>
-                        <span class="ms-label"><?php esc_html_e('Рыночная волатильность', 'momentum-screener'); ?></span>
-                        <span class="ms-value" id="ms-market-vol">-</span>
                     </div>
                 </div>
             </div>

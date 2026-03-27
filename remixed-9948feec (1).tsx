@@ -15,9 +15,9 @@ const MomentumOptimizer = () => {
   const [useVolFilter, setUseVolFilter] = useState(false);
   const [maxVol, setMaxVol] = useState(50);
   const [useRiskAdj, setUseRiskAdj] = useState(false);
-  const [dynamicMode, setDynamicMode] = useState(false);
-  const [marketVolThreshold, setMarketVolThreshold] = useState(25);
-  const [hysteresisThreshold, setHysteresisThreshold] = useState(10); // Порог гистерезиса в %
+  const [useReturnFilter, setUseReturnFilter] = useState(false);
+  const [minReturn, setMinReturn] = useState(30);
+  const [maxReturn, setMaxReturn] = useState(160);
   const [selectedPeriod, setSelectedPeriod] = useState(null);
 
   const handleFileUpload = (event) => {
@@ -115,57 +115,9 @@ const MomentumOptimizer = () => {
       return Math.sqrt(variance) * 100;
     };
 
-    const calcMarketVol = (endIdx) => {
-      const startIdx = Math.max(0, endIdx - lookbackPeriod);
-      const returns = [];
-      
-      for (let i = startIdx + 1; i <= endIdx && i < data.length; i++) {
-        let avgReturn = 0;
-        let count = 0;
-        allTickersArray.forEach(ticker => {
-          if (data[i][ticker] && data[i-1][ticker] && data[i-1][ticker] > 0) {
-            avgReturn += (data[i][ticker] - data[i-1][ticker]) / data[i-1][ticker];
-            count++;
-          }
-        });
-        if (count > 0) returns.push(avgReturn / count);
-      }
-      
-      if (returns.length === 0) return 0;
-      const avg = returns.reduce((a, b) => a + b, 0) / returns.length;
-      const variance = returns.reduce((sum, r) => sum + Math.pow(r - avg, 2), 0) / returns.length;
-      return Math.sqrt(variance) * 100;
-    };
-
-    const calcMomentumAtIndex = (i, useHysteresis = false) => {
+    const calcMomentumAtIndex = (i) => {
       const currentDate = new Date(data[i].Time);
       const momentumScores = [];
-
-      let adjustedTopN = topN;
-      let targetN = topN;
-
-      if (dynamicMode) {
-        const marketVol = calcMarketVol(i);
-
-        // Плавное масштабирование: чем выше волатильность, тем меньше акций
-        const volRatio = marketVolThreshold / Math.max(marketVol, 5);
-        targetN = Math.round(topN * Math.pow(volRatio, 0.5));
-        targetN = Math.max(5, Math.min(targetN, 30)); // Ограничения
-
-        if (useHysteresis) {
-          // Гистерезис: меняем только при существенном отклонении
-          const changePercent = Math.abs(targetN - lastAdjustedTopN) / lastAdjustedTopN;
-
-          if (changePercent > hysteresisThreshold / 100) {
-            adjustedTopN = targetN;
-            lastAdjustedTopN = adjustedTopN; // Обновляем для следующей итерации
-          } else {
-            adjustedTopN = lastAdjustedTopN; // Держим прежнее значение
-          }
-        } else {
-          adjustedTopN = targetN;
-        }
-      }
 
       allTickersArray.forEach(ticker => {
         const currentPrice = data[i][ticker];
@@ -217,14 +169,19 @@ const MomentumOptimizer = () => {
             totalReturn = priceReturn + dividendReturn;
           }
           
+          if (useReturnFilter) {
+            const returnPct = totalReturn * 100;
+            if (returnPct < minReturn || returnPct > maxReturn) return;
+          }
+
           let momentum = totalReturn;
           if (useRiskAdj && vol > 0) {
             momentum = (totalReturn * 100) / vol;
           }
-          
-          momentumScores.push({ 
-            ticker, 
-            momentum, 
+
+          momentumScores.push({
+            ticker,
+            momentum,
             price: currentPrice,
             volatility: vol,
             rawReturn: totalReturn
@@ -234,18 +191,15 @@ const MomentumOptimizer = () => {
 
       momentumScores.sort((a, b) => b.momentum - a.momentum);
       return {
-        selectedStocks: momentumScores.slice(0, adjustedTopN),
-        adjustedTopN,
-        targetN, // Целевой размер без гистерезиса
+        selectedStocks: momentumScores.slice(0, topN),
         date: currentDate
       };
     };
 
     const startIdx = skipLastMonth ? lookbackPeriod + 1 : lookbackPeriod;
-    let lastAdjustedTopN = topN; // Для гистерезиса
 
     for (let i = startIdx; i < data.length - holdingPeriod; i += holdingPeriod) {
-      const { selectedStocks, adjustedTopN, targetN } = calcMomentumAtIndex(i, true); // true = включить гистерезис
+      const { selectedStocks } = calcMomentumAtIndex(i);
       const currentDate = new Date(data[i].Time);
 
       if (selectedStocks.length > 0) {
@@ -291,9 +245,7 @@ const MomentumOptimizer = () => {
         portfolioValues.push({
           date: currentDate.toISOString().split('T')[0],
           value: cash,
-          return: periodReturn * 100,
-          portfolioSize: adjustedTopN, // Фактический размер портфеля
-          targetSize: targetN // Целевой размер (без гистерезиса)
+          return: periodReturn * 100
         });
 
         detailedTrades.push({
@@ -317,9 +269,8 @@ const MomentumOptimizer = () => {
     const lastIdx = data.length - 1;
     let currentRecommendations = null;
     if (lastIdx >= startIdx) {
-      const { selectedStocks, adjustedTopN, targetN, date } = calcMomentumAtIndex(lastIdx, false); // false = без гистерезиса для текущих рекомендаций
-      const marketVol = calcMarketVol(lastIdx);
-      
+      const { selectedStocks, date } = calcMomentumAtIndex(lastIdx);
+
       currentRecommendations = {
         date: date.toISOString().split('T')[0],
         stocks: selectedStocks.map(s => ({
@@ -328,11 +279,9 @@ const MomentumOptimizer = () => {
           momentum: (s.momentum * 100).toFixed(2),
           rawReturn: (s.rawReturn * 100).toFixed(2),
           volatility: s.volatility.toFixed(2),
-          weight: (100 / adjustedTopN).toFixed(1)
+          weight: (100 / topN).toFixed(1)
         })),
-        portfolioSize: adjustedTopN,
-        targetSize: targetN, // Целевой размер
-        marketVolatility: marketVol.toFixed(2)
+        portfolioSize: selectedStocks.length
       };
     }
 
@@ -389,15 +338,12 @@ const MomentumOptimizer = () => {
         years: totalYears.toFixed(1)
       }
     };
-  }, [data, dividendData, lookbackPeriod, holdingPeriod, topN, useDividends, skipLastMonth, useVolFilter, maxVol, useRiskAdj, dynamicMode, marketVolThreshold, hysteresisThreshold]);
+  }, [data, dividendData, lookbackPeriod, holdingPeriod, topN, useDividends, skipLastMonth, useVolFilter, maxVol, useRiskAdj, useReturnFilter, minReturn, maxReturn]);
 
   if (!data) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-6">
         <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl border border-slate-200">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2 text-center">
-            Оптимизатор Momentum Стратегии
-          </h1>
           <p className="text-slate-600 mb-6 text-center">
             Загрузите Excel файл с историческими ценами акций
           </p>
@@ -452,9 +398,6 @@ const MomentumOptimizer = () => {
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-4xl font-bold text-slate-800 mb-2">
-              Оптимизатор Momentum Стратегии
-            </h1>
             {stats && (
               <p className="text-slate-600">
                 Российский рынок акций • {stats.periods} месяцев • {stats.totalTickers} тикеров (сейчас торгуется {stats.activeTickers})
@@ -640,57 +583,56 @@ const MomentumOptimizer = () => {
             )}
           </div>
 
-          <div className="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-xl p-4 border border-cyan-200 shadow-sm">
+          <div className="bg-gradient-to-br from-rose-50 to-orange-50 rounded-xl p-4 border border-rose-200 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-slate-800 font-semibold">
-                Динамический режим
+                Фильтр границ доходности
               </h3>
               <button
-                onClick={() => setDynamicMode(!dynamicMode)}
+                onClick={() => setUseReturnFilter(!useReturnFilter)}
                 className={`px-4 py-1 rounded-lg font-semibold transition text-sm shadow-sm ${
-                  dynamicMode 
-                    ? 'bg-green-500 hover:bg-green-600 text-white' 
+                  useReturnFilter
+                    ? 'bg-green-500 hover:bg-green-600 text-white'
                     : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-300'
                 }`}
               >
-                {dynamicMode ? 'ВКЛ' : 'ВЫКЛ'}
+                {useReturnFilter ? 'ВКЛ' : 'ВЫКЛ'}
               </button>
             </div>
-            {dynamicMode && (
+            {useReturnFilter && (
               <div className="space-y-4">
                 <div>
                   <label className="text-slate-700 text-sm block mb-1">
-                    Целевая волатильность: {marketVolThreshold}%
+                    Мин. доходность: {minReturn}%
                   </label>
                   <input
                     type="range"
-                    min="15"
-                    max="50"
+                    min="-50"
+                    max="100"
                     step="5"
-                    value={marketVolThreshold}
-                    onChange={(e) => setMarketVolThreshold(Number(e.target.value))}
+                    value={minReturn}
+                    onChange={(e) => setMinReturn(Number(e.target.value))}
                     className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
                   />
                   <p className="text-slate-600 text-xs mt-2">
-                    Размер портфеля автоматически адаптируется: чем выше волатильность, тем больше диверсификация
+                    Исключает акции без достаточного импульса. Рекомендуется: +20–30%
                   </p>
                 </div>
-
-                <div className="pt-3 border-t border-cyan-200">
+                <div className="pt-3 border-t border-rose-200">
                   <label className="text-slate-700 text-sm block mb-1">
-                    Порог изменения (гистерезис): {hysteresisThreshold}%
+                    Макс. доходность: {maxReturn}%
                   </label>
                   <input
                     type="range"
-                    min="5"
-                    max="25"
-                    step="5"
-                    value={hysteresisThreshold}
-                    onChange={(e) => setHysteresisThreshold(Number(e.target.value))}
+                    min="50"
+                    max="300"
+                    step="10"
+                    value={maxReturn}
+                    onChange={(e) => setMaxReturn(Number(e.target.value))}
                     className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
                   />
                   <p className="text-slate-600 text-xs mt-2">
-                    Размер портфеля меняется только если отклонение превышает {hysteresisThreshold}% (избегает частых изменений)
+                    Исключает перегретые акции с риском разворота. Рекомендуется: 120–160%
                   </p>
                 </div>
               </div>
@@ -774,62 +716,6 @@ const MomentumOptimizer = () => {
               </ResponsiveContainer>
             </div>
 
-            {dynamicMode && (
-              <div className="bg-white rounded-xl p-6 shadow-lg mb-6 border border-slate-200">
-                <h2 className="text-2xl font-bold text-slate-800 mb-4">
-                  Динамика размера портфеля
-                  <span className="text-slate-500 text-sm ml-2 font-normal">
-                    (плавное масштабирование с гистерезисом)
-                  </span>
-                </h2>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={result.portfolioValues}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis
-                      dataKey="date"
-                      stroke="#64748b"
-                      tick={{ fill: '#64748b' }}
-                    />
-                    <YAxis
-                      stroke="#64748b"
-                      tick={{ fill: '#64748b' }}
-                      domain={[0, 30]}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#ffffff',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px'
-                      }}
-                      labelStyle={{ color: '#1e293b' }}
-                    />
-                    <Legend wrapperStyle={{ color: '#1e293b' }} />
-                    <Line
-                      type="stepAfter"
-                      dataKey="portfolioSize"
-                      stroke="#10b981"
-                      strokeWidth={2}
-                      name="Фактический размер (с гистерезисом)"
-                      dot={false}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="targetSize"
-                      stroke="#f59e0b"
-                      strokeWidth={1}
-                      strokeDasharray="5 5"
-                      name="Целевой размер (без гистерезиса)"
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-                <p className="text-slate-600 text-sm mt-3">
-                  <span className="font-semibold">Зеленая линия:</span> фактическое количество акций в портфеле с учетом гистерезиса ({hysteresisThreshold}% порог).
-                  <span className="font-semibold ml-2">Оранжевая пунктирная:</span> целевой размер на основе текущей волатильности.
-                </p>
-              </div>
-            )}
-
             <div className="bg-white rounded-xl p-6 shadow-lg border border-slate-200 mb-6">
               <h2 className="text-2xl font-bold text-slate-800 mb-4">Распределение доходности периодов</h2>
               <ResponsiveContainer width="100%" height={300}>
@@ -874,14 +760,6 @@ const MomentumOptimizer = () => {
                   <div className="text-right">
                     <div className="text-slate-600 text-sm">Размер портфеля</div>
                     <div className="text-slate-800 text-3xl font-bold">{result.currentRecommendations.portfolioSize}</div>
-                    {dynamicMode && result.currentRecommendations.targetSize !== result.currentRecommendations.portfolioSize && (
-                      <div className="text-amber-600 text-sm mt-1">
-                        Целевой: {result.currentRecommendations.targetSize} (гистерезис активен)
-                      </div>
-                    )}
-                    <div className="text-slate-500 text-xs mt-1">
-                      Рыночная волатильность: {result.currentRecommendations.marketVolatility}%
-                    </div>
                   </div>
                 </div>
 
@@ -934,16 +812,6 @@ const MomentumOptimizer = () => {
                 <div className="mt-4 p-3 bg-green-100 rounded-lg border border-green-300">
                   <p className="text-slate-700 text-sm">
                     <strong>Совет:</strong> Распределите капитал равными долями между всеми акциями.
-                    {dynamicMode && (
-                      <span>
-                        {' '}Динамический режим с плавным масштабированием: текущая рыночная волатильность {result.currentRecommendations.marketVolatility}%
-                        {parseFloat(result.currentRecommendations.marketVolatility) > marketVolThreshold
-                          ? ` (выше целевой ${marketVolThreshold}%) → увеличена диверсификация`
-                          : ` (ниже целевой ${marketVolThreshold}%) → концентрированный портфель`}.
-                        {result.currentRecommendations.targetSize !== result.currentRecommendations.portfolioSize &&
-                          ` Гистерезис удерживает ${result.currentRecommendations.portfolioSize} акций (целевой: ${result.currentRecommendations.targetSize}).`}
-                      </span>
-                    )}
                   </p>
                 </div>
               </div>
@@ -1055,8 +923,8 @@ const MomentumOptimizer = () => {
                 {useRiskAdj && (
                   <p>Риск-корректированный momentum учитывает волатильность при выборе акций.</p>
                 )}
-                {dynamicMode && (
-                  <p>Динамический режим с плавным масштабированием и гистерезисом ({hysteresisThreshold}%) адаптирует размер портфеля к рыночной волатильности, избегая частых изменений.</p>
+                {useReturnFilter && (
+                  <p>Фильтр границ доходности активен: от {minReturn}% до {maxReturn}%. Исключаются перегретые акции и акции без импульса.</p>
                 )}
               </div>
             </div>
