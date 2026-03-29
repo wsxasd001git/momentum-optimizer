@@ -22,6 +22,7 @@ $lock_return    = !empty($atts['lock_return'])    && $atts['lock_return']    !==
      data-lookback="<?php echo esc_attr($atts['lookback']); ?>"
      data-holding="<?php echo esc_attr($atts['holding']); ?>"
      data-topn="<?php echo esc_attr($atts['topn']); ?>"
+     data-tickers="<?php echo esc_attr($atts['tickers']); ?>"
      data-lock-lookback="<?php echo $lock_lookback ? '1' : '0'; ?>"
      data-lock-holding="<?php echo $lock_holding ? '1' : '0'; ?>"
      data-lock-topn="<?php echo $lock_topn ? '1' : '0'; ?>"

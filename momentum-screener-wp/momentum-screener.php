@@ -272,7 +272,10 @@ class Momentum_Screener {
                 <li><code>lookback="3"</code> - <?php esc_html_e('Период расчета momentum (1-12 мес)', 'momentum-screener'); ?></li>
                 <li><code>holding="1"</code> - <?php esc_html_e('Период удержания (1-6 мес)', 'momentum-screener'); ?></li>
                 <li><code>topn="10"</code> - <?php esc_html_e('Количество акций в портфеле (5-30)', 'momentum-screener'); ?></li>
+                <li><code>tickers="SBER,GAZP,LKOH"</code> - <?php esc_html_e('Фильтр тикеров через запятую. Если не указан — используются все тикеры из файла', 'momentum-screener'); ?></li>
             </ul>
+            <p><?php esc_html_e('Пример для скринера по конкретным тикерам:', 'momentum-screener'); ?></p>
+            <code>[momentum_screener tickers="SBER,GAZP,LKOH,NVTK,ROSN"]</code>
 
             <h3><?php esc_html_e('Блокировка фильтров:', 'momentum-screener'); ?></h3>
             <p><?php esc_html_e('Добавьте атрибуты lock_*="1", чтобы запретить пользователю изменять соответствующий параметр. Пример:', 'momentum-screener'); ?></p>
@@ -417,6 +420,7 @@ class Momentum_Screener {
             'lookback' => isset($options['default_lookback']) ? $options['default_lookback'] : 3,
             'holding' => isset($options['default_holding']) ? $options['default_holding'] : 1,
             'topn' => isset($options['default_topn']) ? $options['default_topn'] : 10,
+            'tickers' => '',
             'lock_lookback' => '0',
             'lock_holding' => '0',
             'lock_topn' => '0',
@@ -426,6 +430,12 @@ class Momentum_Screener {
             'lock_riskadj' => '0',
             'lock_return' => '0',
         ), $atts);
+
+        // Sanitize tickers: allow only alphanumeric chars, commas, spaces, dots and hyphens
+        if (!empty($atts['tickers'])) {
+            $atts['tickers'] = preg_replace('/[^A-Za-zА-Яа-яЁё0-9,\s.\-]/', '', $atts['tickers']);
+            $atts['tickers'] = trim($atts['tickers']);
+        }
 
         ob_start();
         include MOMENTUM_SCREENER_PLUGIN_DIR . 'includes/shortcode-template.php';

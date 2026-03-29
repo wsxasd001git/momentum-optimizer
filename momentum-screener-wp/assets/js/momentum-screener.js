@@ -12,6 +12,7 @@
     let charts = {};
     let recalculateTimeout = null;
     let tickersCache = null;
+    let allowedTickers = null; // null = all tickers; array = filtered subset
 
     // Lock flags (set from shortcode attributes)
     let locks = {
@@ -51,6 +52,12 @@
         settings.lookbackPeriod = parseInt($app.data('lookback')) || momentumScreener.defaults.lookback;
         settings.holdingPeriod = parseInt($app.data('holding')) || momentumScreener.defaults.holding;
         settings.topN = parseInt($app.data('topn')) || momentumScreener.defaults.topn;
+
+        // Load tickers filter from data attribute
+        const tickersAttr = $app.data('tickers');
+        if (tickersAttr && String(tickersAttr).trim() !== '') {
+            allowedTickers = String(tickersAttr).split(',').map(t => t.trim().toUpperCase()).filter(t => t.length > 0);
+        }
 
         // Load lock flags from data attributes
         locks.lookback  = $app.data('lock-lookback')  === 1 || $app.data('lock-lookback')  === '1';
@@ -288,19 +295,26 @@
     function updateStats() {
         if (!priceData || priceData.length === 0) return;
 
-        // Cache tickers list
+        // Cache tickers list (apply allowedTickers filter if set)
         if (!tickersCache) {
-            tickersCache = Object.keys(priceData[0]).filter(k => k !== 'Time');
+            const allTickers = Object.keys(priceData[0]).filter(k => k !== 'Time');
+            if (allowedTickers && allowedTickers.length > 0) {
+                const allowedSet = new Set(allowedTickers.map(t => t.toUpperCase()));
+                tickersCache = allTickers.filter(t => allowedSet.has(t.toUpperCase()));
+            } else {
+                tickersCache = allTickers;
+            }
         }
 
         const lastRow = priceData[priceData.length - 1];
-        const activeCount = Object.keys(lastRow).filter(k =>
-            k !== 'Time' && lastRow[k] != null && lastRow[k] !== ''
+        const activeCount = tickersCache.filter(k =>
+            lastRow[k] != null && lastRow[k] !== '' && lastRow[k] > 0
         ).length;
 
+        const filterNote = allowedTickers ? ' &bull; фильтр: ' + allowedTickers.length + ' тикеров' : '';
         $('#ms-stats').html(
             priceData.length + ' месяцев &bull; ' +
-            tickersCache.length + ' тикеров (сейчас торгуется ' + activeCount + ')'
+            tickersCache.length + ' тикеров (сейчас торгуется ' + activeCount + ')' + filterNote
         );
     }
 
