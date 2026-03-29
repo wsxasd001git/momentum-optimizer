@@ -395,6 +395,14 @@ class Momentum_Screener {
             'lookback' => isset($options['default_lookback']) ? $options['default_lookback'] : 3,
             'holding' => isset($options['default_holding']) ? $options['default_holding'] : 1,
             'topn' => isset($options['default_topn']) ? $options['default_topn'] : 10,
+            'lock_lookback' => '0',
+            'lock_holding' => '0',
+            'lock_topn' => '0',
+            'lock_dividends' => '0',
+            'lock_skip' => '0',
+            'lock_vol' => '0',
+            'lock_riskadj' => '0',
+            'lock_return' => '0',
         ), $atts);
 
         ob_start();

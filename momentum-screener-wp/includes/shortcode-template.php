@@ -8,10 +8,28 @@ if (!defined('ABSPATH')) {
 }
 ?>
 
+<?php
+$lock_lookback  = !empty($atts['lock_lookback'])  && $atts['lock_lookback']  !== '0';
+$lock_holding   = !empty($atts['lock_holding'])   && $atts['lock_holding']   !== '0';
+$lock_topn      = !empty($atts['lock_topn'])      && $atts['lock_topn']      !== '0';
+$lock_dividends = !empty($atts['lock_dividends']) && $atts['lock_dividends'] !== '0';
+$lock_skip      = !empty($atts['lock_skip'])      && $atts['lock_skip']      !== '0';
+$lock_vol       = !empty($atts['lock_vol'])       && $atts['lock_vol']       !== '0';
+$lock_riskadj   = !empty($atts['lock_riskadj'])   && $atts['lock_riskadj']   !== '0';
+$lock_return    = !empty($atts['lock_return'])    && $atts['lock_return']    !== '0';
+?>
 <div id="momentum-screener-app" class="momentum-screener-container"
      data-lookback="<?php echo esc_attr($atts['lookback']); ?>"
      data-holding="<?php echo esc_attr($atts['holding']); ?>"
-     data-topn="<?php echo esc_attr($atts['topn']); ?>">
+     data-topn="<?php echo esc_attr($atts['topn']); ?>"
+     data-lock-lookback="<?php echo $lock_lookback ? '1' : '0'; ?>"
+     data-lock-holding="<?php echo $lock_holding ? '1' : '0'; ?>"
+     data-lock-topn="<?php echo $lock_topn ? '1' : '0'; ?>"
+     data-lock-dividends="<?php echo $lock_dividends ? '1' : '0'; ?>"
+     data-lock-skip="<?php echo $lock_skip ? '1' : '0'; ?>"
+     data-lock-vol="<?php echo $lock_vol ? '1' : '0'; ?>"
+     data-lock-riskadj="<?php echo $lock_riskadj ? '1' : '0'; ?>"
+     data-lock-return="<?php echo $lock_return ? '1' : '0'; ?>">
 
     <!-- Header -->
     <div class="ms-header">
@@ -35,23 +53,23 @@ if (!defined('ABSPATH')) {
 
         <!-- Controls -->
         <div class="ms-controls">
-            <div class="ms-control-group">
+            <div class="ms-control-group<?php echo $lock_lookback ? ' ms-control-locked' : ''; ?>">
                 <label for="ms-lookback"><?php esc_html_e('Период расчета momentum (мес)', 'momentum-screener'); ?></label>
-                <input type="range" id="ms-lookback" min="1" max="12" value="<?php echo esc_attr($atts['lookback']); ?>">
+                <input type="range" id="ms-lookback" min="1" max="12" value="<?php echo esc_attr($atts['lookback']); ?>"<?php echo $lock_lookback ? ' disabled' : ''; ?>>
                 <span class="ms-control-value" id="ms-lookback-value"><?php echo esc_html($atts['lookback']); ?> мес</span>
                 <p class="ms-control-desc"><?php esc_html_e('За какой период считаем доходность для ранжирования акций', 'momentum-screener'); ?></p>
             </div>
 
-            <div class="ms-control-group">
+            <div class="ms-control-group<?php echo $lock_holding ? ' ms-control-locked' : ''; ?>">
                 <label for="ms-holding"><?php esc_html_e('Период удержания (мес)', 'momentum-screener'); ?></label>
-                <input type="range" id="ms-holding" min="1" max="6" value="<?php echo esc_attr($atts['holding']); ?>">
+                <input type="range" id="ms-holding" min="1" max="6" value="<?php echo esc_attr($atts['holding']); ?>"<?php echo $lock_holding ? ' disabled' : ''; ?>>
                 <span class="ms-control-value" id="ms-holding-value"><?php echo esc_html($atts['holding']); ?> мес</span>
                 <p class="ms-control-desc"><?php esc_html_e('Как долго держим позиции перед ребалансировкой', 'momentum-screener'); ?></p>
             </div>
 
-            <div class="ms-control-group">
+            <div class="ms-control-group<?php echo $lock_topn ? ' ms-control-locked' : ''; ?>">
                 <label for="ms-topn"><?php esc_html_e('Количество акций в портфеле', 'momentum-screener'); ?></label>
-                <input type="range" id="ms-topn" min="5" max="30" value="<?php echo esc_attr($atts['topn']); ?>">
+                <input type="range" id="ms-topn" min="5" max="30" value="<?php echo esc_attr($atts['topn']); ?>"<?php echo $lock_topn ? ' disabled' : ''; ?>>
                 <span class="ms-control-value" id="ms-topn-value"><?php echo esc_html($atts['topn']); ?> акций</span>
                 <p class="ms-control-desc"><?php esc_html_e('Топ N акций с наибольшим momentum', 'momentum-screener'); ?></p>
             </div>
@@ -60,25 +78,25 @@ if (!defined('ABSPATH')) {
         <!-- Options -->
         <div class="ms-options">
             <div class="ms-option-row">
-                <div class="ms-option">
+                <div class="ms-option<?php echo $lock_dividends ? ' ms-option-locked' : ''; ?>">
                     <div class="ms-option-header">
                         <div>
                             <h4><?php esc_html_e('Учет дивидендов', 'momentum-screener'); ?></h4>
                             <p id="ms-dividends-desc"><?php esc_html_e('Полная доходность: рост цены + дивиденды', 'momentum-screener'); ?></p>
                         </div>
-                        <button class="ms-toggle active" id="ms-dividends-toggle" data-enabled="true">
+                        <button class="ms-toggle active<?php echo $lock_dividends ? ' ms-locked' : ''; ?>" id="ms-dividends-toggle" data-enabled="true"<?php echo $lock_dividends ? ' disabled' : ''; ?>>
                             <?php esc_html_e('Включено', 'momentum-screener'); ?>
                         </button>
                     </div>
                 </div>
 
-                <div class="ms-option">
+                <div class="ms-option<?php echo $lock_skip ? ' ms-option-locked' : ''; ?>">
                     <div class="ms-option-header">
                         <div>
                             <h4><?php esc_html_e('Фильтр последнего месяца (Reversal Effect)', 'momentum-screener'); ?></h4>
                             <p id="ms-skip-desc"><?php esc_html_e('Исключаем последний месяц из расчета momentum', 'momentum-screener'); ?></p>
                         </div>
-                        <button class="ms-toggle active" id="ms-skip-toggle" data-enabled="true">
+                        <button class="ms-toggle active<?php echo $lock_skip ? ' ms-locked' : ''; ?>" id="ms-skip-toggle" data-enabled="true"<?php echo $lock_skip ? ' disabled' : ''; ?>>
                             <?php esc_html_e('Включено', 'momentum-screener'); ?>
                         </button>
                     </div>
@@ -86,38 +104,38 @@ if (!defined('ABSPATH')) {
             </div>
 
             <div class="ms-option-row">
-                <div class="ms-option ms-option-advanced">
+                <div class="ms-option ms-option-advanced<?php echo $lock_vol ? ' ms-option-locked' : ''; ?>">
                     <div class="ms-option-header">
                         <h4><?php esc_html_e('Фильтр волатильности', 'momentum-screener'); ?></h4>
-                        <button class="ms-toggle" id="ms-volfilter-toggle" data-enabled="false">
+                        <button class="ms-toggle<?php echo $lock_vol ? ' ms-locked' : ''; ?>" id="ms-volfilter-toggle" data-enabled="false"<?php echo $lock_vol ? ' disabled' : ''; ?>>
                             <?php esc_html_e('ВЫКЛ', 'momentum-screener'); ?>
                         </button>
                     </div>
                     <div class="ms-option-body" id="ms-volfilter-body" style="display: none;">
                         <label><?php esc_html_e('Макс. волатильность:', 'momentum-screener'); ?> <span id="ms-maxvol-value">50</span>%</label>
-                        <input type="range" id="ms-maxvol" min="20" max="100" step="1" value="50">
+                        <input type="range" id="ms-maxvol" min="20" max="100" step="1" value="50"<?php echo $lock_vol ? ' disabled' : ''; ?>>
                         <p><?php esc_html_e('Исключает акции с волатильностью выше порога', 'momentum-screener'); ?></p>
                     </div>
-                    <div class="ms-option-sub">
+                    <div class="ms-option-sub<?php echo $lock_riskadj ? ' ms-option-locked' : ''; ?>">
                         <span><?php esc_html_e('Риск-корректированный momentum', 'momentum-screener'); ?></span>
-                        <button class="ms-toggle-small" id="ms-riskadj-toggle" data-enabled="false">
+                        <button class="ms-toggle-small<?php echo $lock_riskadj ? ' ms-locked' : ''; ?>" id="ms-riskadj-toggle" data-enabled="false"<?php echo $lock_riskadj ? ' disabled' : ''; ?>>
                             <?php esc_html_e('ВЫКЛ', 'momentum-screener'); ?>
                         </button>
                     </div>
                 </div>
 
-                <div class="ms-option ms-option-advanced">
+                <div class="ms-option ms-option-advanced<?php echo $lock_return ? ' ms-option-locked' : ''; ?>">
                     <div class="ms-option-header">
                         <h4><?php esc_html_e('Фильтр границ доходности', 'momentum-screener'); ?></h4>
-                        <button class="ms-toggle" id="ms-returnfilter-toggle" data-enabled="false">
+                        <button class="ms-toggle<?php echo $lock_return ? ' ms-locked' : ''; ?>" id="ms-returnfilter-toggle" data-enabled="false"<?php echo $lock_return ? ' disabled' : ''; ?>>
                             <?php esc_html_e('ВЫКЛ', 'momentum-screener'); ?>
                         </button>
                     </div>
                     <div class="ms-option-body" id="ms-returnfilter-body" style="display: none;">
                         <label><?php esc_html_e('Мин. доходность:', 'momentum-screener'); ?> <span id="ms-minreturn-value">30</span>%</label>
-                        <input type="range" id="ms-minreturn" min="-50" max="100" step="5" value="30">
+                        <input type="range" id="ms-minreturn" min="-50" max="100" step="5" value="30"<?php echo $lock_return ? ' disabled' : ''; ?>>
                         <label style="margin-top:8px;"><?php esc_html_e('Макс. доходность:', 'momentum-screener'); ?> <span id="ms-maxreturn-value">160</span>%</label>
-                        <input type="range" id="ms-maxreturn" min="50" max="300" step="10" value="160">
+                        <input type="range" id="ms-maxreturn" min="50" max="300" step="10" value="160"<?php echo $lock_return ? ' disabled' : ''; ?>>
                         <p><?php esc_html_e('Исключает акции за пределами диапазона доходности. Оптимум: от +30% до 160%.', 'momentum-screener'); ?></p>
                     </div>
                 </div>
