@@ -222,6 +222,41 @@
     border-color: var(--color-primary);
 }
 
+/* Locked state */
+.ms-toggle.ms-locked,
+.ms-toggle-small.ms-locked {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+.ms-toggle.ms-locked.active,
+.ms-toggle-small.ms-locked.active {
+    background: var(--color-primary);
+    color: var(--color-white);
+    border-color: var(--color-primary);
+    opacity: 0.65;
+}
+
+.ms-control-locked input[type="range"],
+.ms-option-locked input[type="range"] {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.ms-control-locked,
+.ms-option-locked {
+    position: relative;
+}
+
+.ms-control-locked::after,
+.ms-option-locked::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    cursor: not-allowed;
+    z-index: 1;
+}
+
 .ms-option-body {
     margin-top: 12px;
     padding-top: 12px;

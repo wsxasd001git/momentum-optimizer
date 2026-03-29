@@ -13,6 +13,18 @@
     let recalculateTimeout = null;
     let tickersCache = null;
 
+    // Lock flags (set from shortcode attributes)
+    let locks = {
+        lookback: false,
+        holding: false,
+        topn: false,
+        dividends: false,
+        skip: false,
+        vol: false,
+        riskadj: false,
+        return: false
+    };
+
     // Settings
     let settings = {
         lookbackPeriod: 3,
@@ -40,6 +52,16 @@
         settings.holdingPeriod = parseInt($app.data('holding')) || momentumScreener.defaults.holding;
         settings.topN = parseInt($app.data('topn')) || momentumScreener.defaults.topn;
 
+        // Load lock flags from data attributes
+        locks.lookback  = $app.data('lock-lookback')  === 1 || $app.data('lock-lookback')  === '1';
+        locks.holding   = $app.data('lock-holding')   === 1 || $app.data('lock-holding')   === '1';
+        locks.topn      = $app.data('lock-topn')      === 1 || $app.data('lock-topn')      === '1';
+        locks.dividends = $app.data('lock-dividends') === 1 || $app.data('lock-dividends') === '1';
+        locks.skip      = $app.data('lock-skip')      === 1 || $app.data('lock-skip')      === '1';
+        locks.vol       = $app.data('lock-vol')       === 1 || $app.data('lock-vol')       === '1';
+        locks.riskadj   = $app.data('lock-riskadj')   === 1 || $app.data('lock-riskadj')   === '1';
+        locks.return    = $app.data('lock-return')    === 1 || $app.data('lock-return')    === '1';
+
         // Set initial control values
         $('#ms-lookback').val(settings.lookbackPeriod);
         $('#ms-holding').val(settings.holdingPeriod);
@@ -57,77 +79,97 @@
      */
     function bindEvents() {
         // Range sliders
-        $('#ms-lookback').on('input', function() {
-            settings.lookbackPeriod = parseInt($(this).val());
-            $('#ms-lookback-value').text(settings.lookbackPeriod + ' мес');
-            debouncedRecalculate();
-        });
+        if (!locks.lookback) {
+            $('#ms-lookback').on('input', function() {
+                settings.lookbackPeriod = parseInt($(this).val());
+                $('#ms-lookback-value').text(settings.lookbackPeriod + ' мес');
+                debouncedRecalculate();
+            });
+        }
 
-        $('#ms-holding').on('input', function() {
-            settings.holdingPeriod = parseInt($(this).val());
-            $('#ms-holding-value').text(settings.holdingPeriod + ' мес');
-            debouncedRecalculate();
-        });
+        if (!locks.holding) {
+            $('#ms-holding').on('input', function() {
+                settings.holdingPeriod = parseInt($(this).val());
+                $('#ms-holding-value').text(settings.holdingPeriod + ' мес');
+                debouncedRecalculate();
+            });
+        }
 
-        $('#ms-topn').on('input', function() {
-            settings.topN = parseInt($(this).val());
-            $('#ms-topn-value').text(settings.topN + ' акций');
-            debouncedRecalculate();
-        });
+        if (!locks.topn) {
+            $('#ms-topn').on('input', function() {
+                settings.topN = parseInt($(this).val());
+                $('#ms-topn-value').text(settings.topN + ' акций');
+                debouncedRecalculate();
+            });
+        }
 
-        $('#ms-maxvol').on('input', function() {
-            settings.maxVol = parseInt($(this).val());
-            $('#ms-maxvol-value').text(settings.maxVol);
-            debouncedRecalculate();
-        });
+        if (!locks.vol) {
+            $('#ms-maxvol').on('input', function() {
+                settings.maxVol = parseInt($(this).val());
+                $('#ms-maxvol-value').text(settings.maxVol);
+                debouncedRecalculate();
+            });
+        }
 
-        $('#ms-minreturn').on('input', function() {
-            settings.minReturn = parseInt($(this).val());
-            $('#ms-minreturn-value').text(settings.minReturn);
-            debouncedRecalculate();
-        });
+        if (!locks.return) {
+            $('#ms-minreturn').on('input', function() {
+                settings.minReturn = parseInt($(this).val());
+                $('#ms-minreturn-value').text(settings.minReturn);
+                debouncedRecalculate();
+            });
 
-        $('#ms-maxreturn').on('input', function() {
-            settings.maxReturn = parseInt($(this).val());
-            $('#ms-maxreturn-value').text(settings.maxReturn);
-            debouncedRecalculate();
-        });
+            $('#ms-maxreturn').on('input', function() {
+                settings.maxReturn = parseInt($(this).val());
+                $('#ms-maxreturn-value').text(settings.maxReturn);
+                debouncedRecalculate();
+            });
+        }
 
         // Toggle buttons
-        $('#ms-dividends-toggle').on('click', function() {
-            settings.useDividends = !settings.useDividends;
-            updateToggle($(this), settings.useDividends);
-            $('#ms-dividends-desc').text(settings.useDividends
-                ? 'Полная доходность: рост цены + дивиденды'
-                : 'Только рост цены (без дивидендов)');
-            debouncedRecalculate();
-        });
+        if (!locks.dividends) {
+            $('#ms-dividends-toggle').on('click', function() {
+                settings.useDividends = !settings.useDividends;
+                updateToggle($(this), settings.useDividends);
+                $('#ms-dividends-desc').text(settings.useDividends
+                    ? 'Полная доходность: рост цены + дивиденды'
+                    : 'Только рост цены (без дивидендов)');
+                debouncedRecalculate();
+            });
+        }
 
-        $('#ms-skip-toggle').on('click', function() {
-            settings.skipLastMonth = !settings.skipLastMonth;
-            updateToggle($(this), settings.skipLastMonth);
-            debouncedRecalculate();
-        });
+        if (!locks.skip) {
+            $('#ms-skip-toggle').on('click', function() {
+                settings.skipLastMonth = !settings.skipLastMonth;
+                updateToggle($(this), settings.skipLastMonth);
+                debouncedRecalculate();
+            });
+        }
 
-        $('#ms-volfilter-toggle').on('click', function() {
-            settings.useVolFilter = !settings.useVolFilter;
-            updateToggle($(this), settings.useVolFilter);
-            $('#ms-volfilter-body').toggle(settings.useVolFilter);
-            debouncedRecalculate();
-        });
+        if (!locks.vol) {
+            $('#ms-volfilter-toggle').on('click', function() {
+                settings.useVolFilter = !settings.useVolFilter;
+                updateToggle($(this), settings.useVolFilter);
+                $('#ms-volfilter-body').toggle(settings.useVolFilter);
+                debouncedRecalculate();
+            });
+        }
 
-        $('#ms-riskadj-toggle').on('click', function() {
-            settings.useRiskAdj = !settings.useRiskAdj;
-            updateToggle($(this), settings.useRiskAdj, true);
-            debouncedRecalculate();
-        });
+        if (!locks.riskadj) {
+            $('#ms-riskadj-toggle').on('click', function() {
+                settings.useRiskAdj = !settings.useRiskAdj;
+                updateToggle($(this), settings.useRiskAdj, true);
+                debouncedRecalculate();
+            });
+        }
 
-        $('#ms-returnfilter-toggle').on('click', function() {
-            settings.useReturnFilter = !settings.useReturnFilter;
-            updateToggle($(this), settings.useReturnFilter);
-            $('#ms-returnfilter-body').toggle(settings.useReturnFilter);
-            debouncedRecalculate();
-        });
+        if (!locks.return) {
+            $('#ms-returnfilter-toggle').on('click', function() {
+                settings.useReturnFilter = !settings.useReturnFilter;
+                updateToggle($(this), settings.useReturnFilter);
+                $('#ms-returnfilter-body').toggle(settings.useReturnFilter);
+                debouncedRecalculate();
+            });
+        }
     }
 
     /**
