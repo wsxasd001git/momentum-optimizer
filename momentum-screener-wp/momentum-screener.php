@@ -274,6 +274,28 @@ class Momentum_Screener {
                 <li><code>topn="10"</code> - <?php esc_html_e('Количество акций в портфеле (5-30)', 'momentum-screener'); ?></li>
             </ul>
 
+            <h3><?php esc_html_e('Блокировка фильтров:', 'momentum-screener'); ?></h3>
+            <p><?php esc_html_e('Добавьте атрибуты lock_*="1", чтобы запретить пользователю изменять соответствующий параметр. Пример:', 'momentum-screener'); ?></p>
+            <code>[momentum_screener lookback="6" holding="2" topn="15" lock_lookback="1" lock_holding="1"]</code>
+            <table class="widefat striped" style="margin-top:12px; max-width:700px;">
+                <thead>
+                    <tr>
+                        <th><?php esc_html_e('Атрибут', 'momentum-screener'); ?></th>
+                        <th><?php esc_html_e('Что блокирует', 'momentum-screener'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>lock_lookback="1"</code></td><td><?php esc_html_e('Период расчёта momentum', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>lock_holding="1"</code></td><td><?php esc_html_e('Период удержания', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>lock_topn="1"</code></td><td><?php esc_html_e('Количество акций в портфеле', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>lock_dividends="1"</code></td><td><?php esc_html_e('Тогл учёта дивидендов', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>lock_skip="1"</code></td><td><?php esc_html_e('Тогл Reversal Effect (исключение последнего месяца)', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>lock_vol="1"</code></td><td><?php esc_html_e('Фильтр волатильности (тогл + слайдер)', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>lock_riskadj="1"</code></td><td><?php esc_html_e('Риск-корректированный momentum', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>lock_return="1"</code></td><td><?php esc_html_e('Фильтр границ доходности (тогл + слайдеры)', 'momentum-screener'); ?></td></tr>
+                </tbody>
+            </table>
+
             <hr>
 
             <h2><?php esc_html_e('Требования к Excel файлу', 'momentum-screener'); ?></h2>
