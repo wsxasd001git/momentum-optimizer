@@ -59,6 +59,20 @@
             allowedTickers = String(tickersAttr).split(',').map(t => t.trim().toUpperCase()).filter(t => t.length > 0);
         }
 
+        // Load initial filter states from data attributes
+        settings.useDividends    = $app.data('dividends')     !== 0 && $app.data('dividends')     !== '0';
+        settings.skipLastMonth   = $app.data('skip')          !== 0 && $app.data('skip')          !== '0';
+        settings.useVolFilter    = $app.data('vol-filter')    === 1 || $app.data('vol-filter')    === '1';
+        settings.useRiskAdj      = $app.data('risk-adj')      === 1 || $app.data('risk-adj')      === '1';
+        settings.useReturnFilter = $app.data('return-filter') === 1 || $app.data('return-filter') === '1';
+
+        const rawMaxVol    = parseInt($app.data('max-vol'));
+        const rawMinReturn = parseInt($app.data('min-return'));
+        const rawMaxReturn = parseInt($app.data('max-return'));
+        settings.maxVol    = Number.isNaN(rawMaxVol)    ? 50  : rawMaxVol;
+        settings.minReturn = Number.isNaN(rawMinReturn) ? 30  : rawMinReturn;
+        settings.maxReturn = Number.isNaN(rawMaxReturn) ? 160 : rawMaxReturn;
+
         // Load lock flags from data attributes
         locks.lookback  = $app.data('lock-lookback')  === 1 || $app.data('lock-lookback')  === '1';
         locks.holding   = $app.data('lock-holding')   === 1 || $app.data('lock-holding')   === '1';

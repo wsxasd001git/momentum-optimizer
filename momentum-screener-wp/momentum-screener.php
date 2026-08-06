@@ -268,14 +268,25 @@ class Momentum_Screener {
             <code>[momentum_screener]</code>
 
             <h3><?php esc_html_e('Параметры шорткода:', 'momentum-screener'); ?></h3>
-            <ul>
-                <li><code>lookback="3"</code> - <?php esc_html_e('Период расчета momentum (1-12 мес)', 'momentum-screener'); ?></li>
-                <li><code>holding="1"</code> - <?php esc_html_e('Период удержания (1-6 мес)', 'momentum-screener'); ?></li>
-                <li><code>topn="10"</code> - <?php esc_html_e('Количество акций в портфеле (5-30)', 'momentum-screener'); ?></li>
-                <li><code>tickers="SBER,GAZP,LKOH"</code> - <?php esc_html_e('Фильтр тикеров через запятую. Если не указан — используются все тикеры из файла', 'momentum-screener'); ?></li>
-            </ul>
-            <p><?php esc_html_e('Пример для скринера по конкретным тикерам:', 'momentum-screener'); ?></p>
-            <code>[momentum_screener tickers="SBER,GAZP,LKOH,NVTK,ROSN"]</code>
+            <table class="widefat striped" style="margin-top:8px; max-width:800px;">
+                <thead><tr><th><?php esc_html_e('Атрибут', 'momentum-screener'); ?></th><th><?php esc_html_e('По умолчанию', 'momentum-screener'); ?></th><th><?php esc_html_e('Описание', 'momentum-screener'); ?></th></tr></thead>
+                <tbody>
+                    <tr><td><code>lookback</code></td><td>3</td><td><?php esc_html_e('Период расчета momentum (1-12 мес)', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>holding</code></td><td>1</td><td><?php esc_html_e('Период удержания (1-6 мес)', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>topn</code></td><td>10</td><td><?php esc_html_e('Количество акций в портфеле (5-30)', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>tickers</code></td><td></td><td><?php esc_html_e('Фильтр тикеров через запятую. Если не указан — все тикеры из файла', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>dividends</code></td><td>1</td><td><?php esc_html_e('Учёт дивидендов: 1=вкл, 0=выкл', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>skip</code></td><td>1</td><td><?php esc_html_e('Фильтр последнего месяца (Reversal Effect): 1=вкл, 0=выкл', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>vol_filter</code></td><td>0</td><td><?php esc_html_e('Фильтр волатильности: 1=вкл, 0=выкл', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>max_vol</code></td><td>50</td><td><?php esc_html_e('Макс. волатильность % (20-100)', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>risk_adj</code></td><td>0</td><td><?php esc_html_e('Риск-корректированный momentum: 1=вкл, 0=выкл', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>return_filter</code></td><td>0</td><td><?php esc_html_e('Фильтр границ доходности: 1=вкл, 0=выкл', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>min_return</code></td><td>30</td><td><?php esc_html_e('Мин. доходность % (-50 до 100)', 'momentum-screener'); ?></td></tr>
+                    <tr><td><code>max_return</code></td><td>160</td><td><?php esc_html_e('Макс. доходность % (50 до 300)', 'momentum-screener'); ?></td></tr>
+                </tbody>
+            </table>
+            <p style="margin-top:12px;"><?php esc_html_e('Пример из скриншота:', 'momentum-screener'); ?></p>
+            <code>[momentum_screener lookback="12" holding="1" topn="6" vol_filter="1" max_vol="20" risk_adj="1" return_filter="1" min_return="0" max_return="190"]</code>
 
             <h3><?php esc_html_e('Блокировка фильтров:', 'momentum-screener'); ?></h3>
             <p><?php esc_html_e('Добавьте атрибуты lock_*="1", чтобы запретить пользователю изменять соответствующий параметр. Пример:', 'momentum-screener'); ?></p>
@@ -417,25 +428,38 @@ class Momentum_Screener {
         $options = get_option('momentum_screener_settings');
 
         $atts = shortcode_atts(array(
-            'lookback' => isset($options['default_lookback']) ? $options['default_lookback'] : 3,
-            'holding' => isset($options['default_holding']) ? $options['default_holding'] : 1,
-            'topn' => isset($options['default_topn']) ? $options['default_topn'] : 10,
-            'tickers' => '',
-            'lock_lookback' => '0',
-            'lock_holding' => '0',
-            'lock_topn' => '0',
+            'lookback'      => isset($options['default_lookback']) ? $options['default_lookback'] : 3,
+            'holding'       => isset($options['default_holding']) ? $options['default_holding'] : 1,
+            'topn'          => isset($options['default_topn']) ? $options['default_topn'] : 10,
+            'tickers'       => '',
+            'dividends'     => '1',
+            'skip'          => '1',
+            'vol_filter'    => '0',
+            'max_vol'       => '50',
+            'risk_adj'      => '0',
+            'return_filter' => '0',
+            'min_return'    => '30',
+            'max_return'    => '160',
+            'lock_lookback'  => '0',
+            'lock_holding'   => '0',
+            'lock_topn'      => '0',
             'lock_dividends' => '0',
-            'lock_skip' => '0',
-            'lock_vol' => '0',
-            'lock_riskadj' => '0',
-            'lock_return' => '0',
+            'lock_skip'      => '0',
+            'lock_vol'       => '0',
+            'lock_riskadj'   => '0',
+            'lock_return'    => '0',
         ), $atts);
 
         // Sanitize tickers: allow only alphanumeric chars, commas, spaces, dots and hyphens
         if (!empty($atts['tickers'])) {
-            $atts['tickers'] = preg_replace('/[^A-Za-zА-Яа-яЁё0-9,\s.\-]/', '', $atts['tickers']);
+            $atts['tickers'] = preg_replace('/[^A-Za-z\xd0\x90-\xd1\x8f\xd0\x81\xd1\x910-9,\s.\-]/', '', $atts['tickers']);
             $atts['tickers'] = trim($atts['tickers']);
         }
+
+        // Sanitize numeric filter params
+        $atts['max_vol']    = max(20, min(100, intval($atts['max_vol'])));
+        $atts['min_return'] = max(-50, min(100, intval($atts['min_return'])));
+        $atts['max_return'] = max(50, min(300, intval($atts['max_return'])));
 
         ob_start();
         include MOMENTUM_SCREENER_PLUGIN_DIR . 'includes/shortcode-template.php';
